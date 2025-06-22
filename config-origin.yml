@@ -1,0 +1,16 @@
+telegram:
+  token:
+  admins:
+    -
+    -
+  webhook:
+    domain:
+    path:
+  webapp:
+    host:
+    port:
+  miniapp:
+    link:
+
+database:
+  path:
