@@ -29,6 +29,7 @@ class Tour(Model):
 
 class User(Model):
     user_id = fields.IntField(pk=True)
+    user_tg_id = fields.BigIntField(unique=True, null=False)
     user_name = fields.CharField(max_length=30)
     user_email = fields.CharField(max_length=150, unique=True)
     user_phone = fields.CharField(max_length=15, unique=True)
