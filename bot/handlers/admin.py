@@ -38,6 +38,22 @@ async def back_to_menu(event: CallbackQuery, state: FSMContext):
     await event.message.answer("пользователи", reply_markup=user_menu().as_markup())
 
 
+@admin.callback_query(F.data == "backtotourmenu", IsAdmin())
+async def back_to_menu(event: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await event.answer()
+    await event.message.delete()
+    await event.message.answer("Туры", reply_markup=tour_menu().as_markup())
+
+@admin.callback_query(F.data == "backtodirectmenu", IsAdmin())
+async def back_to_menu(event: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await event.answer()
+    await event.message.delete()
+    await event.message.answer("Туры", reply_markup=direct_menu().as_markup())
+
+
+
 class AddTourPlaces(StatesGroup):
     name = State()
     places = State()
@@ -53,6 +69,7 @@ async def add_tour_places(event: CallbackQuery, state: FSMContext):
         builder = InlineKeyboardBuilder()
         for _ in tours:
             builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"addplacestouradmin_{_['Название']}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer("Выберите тур для информации", reply_markup=builder.as_markup())
         await state.set_state(AddTourPlaces.name)
     else:
@@ -115,6 +132,7 @@ async def add_tour(event: CallbackQuery, state: FSMContext):
         builder = InlineKeyboardBuilder()
         for _ in directions:
             builder.row(InlineKeyboardButton(text=_, callback_data=f"dest_{_}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer("<b>Выберите направление тура из доступных</b>", reply_markup=builder.as_markup())
         await state.set_state(AddTour.direction)
 
@@ -247,6 +265,7 @@ async def delete_direction(event: CallbackQuery, state: FSMContext):
             for _ in directions:
                 builder.row(
                     InlineKeyboardButton(text=_, callback_data=f"directiondeleteadmin_{_}"))
+            builder.row(InlineKeyboardButton(text="Назад", callback_data="backtodirectmenu"))
             await event.message.answer("Выберите направление для удаления", reply_markup=builder.as_markup())
             await state.set_state(DeleteDirection.dir_name)
 
@@ -279,6 +298,7 @@ async def delete_tour(event: CallbackQuery, state: FSMContext):
         for _ in tours:
             builder.row(
                 InlineKeyboardButton(text=_['Название'], callback_data=f"tourtodeleteadmin_{_['Название']}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer("Выберите тур для удаления", reply_markup=builder.as_markup())
         await state.set_state(DeleteTour.tour_name)
 
@@ -354,6 +374,7 @@ async def tours_list(event: CallbackQuery, state: FSMContext):
         builder = InlineKeyboardBuilder()
         for _ in tours:
             builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"informtouradmin_{_['Название']}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer(f"{'\n'.join(result)}", reply_markup=builder.as_markup())
     else:
         await event.message.answer(f"<b>Пока нет туров</b>", reply_markup=tour_menu().as_markup())
@@ -370,13 +391,14 @@ async def tours_by_dest(event: CallbackQuery, state: FSMContext):
         for _ in directions:
             builder.row(
                 InlineKeyboardButton(text=_, callback_data=f"searchbydirectionadmin_{_}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer("Выберите выберите доступное направлени", reply_markup=builder.as_markup())
     else:
         await event.message.answer("Пока нет направлений", reply_markup=tour_menu().as_markup())
 
 
 @admin.callback_query(F.data.startswith("searchbydirectionadmin_"), IsAdmin())
-async def tours_by_dest2(event: CallbackQuery, state: FSMContext):
+async def tours_by_dest(event: CallbackQuery, state: FSMContext):
     await state.clear()
     await event.answer()
     await event.message.delete()
@@ -393,6 +415,7 @@ async def tours_by_dest2(event: CallbackQuery, state: FSMContext):
         builder = InlineKeyboardBuilder()
         for _ in tours:
             builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"informtouradmin_{_['Название']}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer(f"{'\n'.join(result)}", reply_markup=builder.as_markup())
     else:
         await event.message.answer("Туров по данному направлению пока нет", reply_markup=tour_menu().as_markup())
@@ -408,6 +431,7 @@ async def tours_list(event: CallbackQuery, state: FSMContext):
         builder = InlineKeyboardBuilder()
         for _ in tours:
             builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"informtouradmin_{_['Название']}"))
+        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
         await event.message.answer("Выберите тур для информации", reply_markup=builder.as_markup())
     else:
         await event.message.answer("На данный момент нет туров", reply_markup=tour_menu().as_markup())
