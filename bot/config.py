@@ -9,4 +9,4 @@ with open(os.getenv('YML_CONF')) as yam:
 
 BOT_TOKEN = YAML['telegram']['token']
 DB_URL = f"sqlite:///{YAML['database']['path']}"
-SUPER_ADMINS = YAML['telegram']['admins']
+ADMINS = YAML['telegram']['admins']

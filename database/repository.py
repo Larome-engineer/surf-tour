@@ -1,4 +1,4 @@
-from models import *
+from .models import *
 
 
 # Добавить направление
@@ -47,19 +47,28 @@ async def create_payment(date, price, user, tour):
 # async def update_destination(): pass
 #
 #
-# # Оббновить информацию о пользователе
+# # Обновить информацию о пользователе
 # async def update_user(): pass
 
 
 # Получить список доступных направлений
 async def get_all_dest():
-    return await Destination.all()
+    return await Destination.all().values_list("destination", flat=True)
 
+
+async def get_all_tours():
+    return await Tour.all().prefetch_related("tour_destination")
+
+async def get_tour_names():
+    return await Tour.all().prefetch_related("tour_destination")
+
+async def get_tour_by_name(tour_name):
+    return await Tour.get_or_none(tour_name=tour_name).prefetch_related("tour_destination")
 
 # Получить список туров по направлению
 async def get_all_tour_by_dest(destination_name):
     destination = await Destination.get(destination=destination_name)
-    return await Tour.filter(tour_destination=destination).order_by("start_date")
+    return await Tour.filter(tour_destination=destination).prefetch_related("tour_destination")
 
 
 # Получить список свободных туров по направлению
@@ -71,13 +80,18 @@ async def get_all_free_tour_by_dest(destination_name):
     ).order_by("start_date")
 
 
-# Получить информацию пользователя по телефону или Email
+# Получить информацию пользователя по телефону
 async def get_user_by_phone(phone: str):
-    return await User.get_or_none(user_phone=phone)
+    return await User.get_or_none(user_phone=phone).prefetch_related("tours__tour")
 
 
+# Получить информацию пользователя по Email
 async def get_user_by_email(email: str):
-    return await User.get_or_none(user_email=email)
+    return await User.get_or_none(user_email=email).prefetch_related("tours__tour")
+
+
+async def get_user_by_tg_id(tg_id):
+    return await User.get_or_none(user_tg_id=tg_id).prefetch_related("tours__tour")
 
 
 # Получить список пользователей на конкретный тур
@@ -89,12 +103,16 @@ async def get_users_by_tour(tour_name: str):
 
 # Получить список всех пользователей
 async def get_all_users():
-    return await User.all()
+    return await User.all().values_list("user_tg_id", "user_name", "user_email", "user_phone")
 
 
-# Получить список всех оплаченывх туров
-async def get_all_payments():
-    return await Payment.all()
+async def get_all_users_ids() -> list[int]:
+    return await User.all().values_list("user_tg_id", flat=True)
+
+
+# Получить список всех оплаченных туров
+async def get_all_booked_tours():
+    return await Payment.all().prefetch_related("tour", "user")
 
 
 # Получить кол-во мест на тур
@@ -123,6 +141,7 @@ async def add_places_on_tour(tour_name, num_of_places: int):
 # Удалить тур
 async def delete_tour(tour_name: str):
     await Tour.filter(tour_name=tour_name).delete()
+
 
 # Удалить направление
 async def delete_dest(dest_name: str):
