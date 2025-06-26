@@ -16,4 +16,4 @@ async def notify_about_places(users_list, name, places: int):
         except Exception as ex:
             not_send += 1
             continue
-    return await send, not_send
+    return send, not_send

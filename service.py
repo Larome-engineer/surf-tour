@@ -1,3 +1,5 @@
+import datetime
+
 import database.repository as repo
 from utils import date_utils
 
@@ -21,23 +23,84 @@ async def create_tour(name, desc, places, start, end, price, destination):
 
 
 # Создать пользователя
-async def create_user(tg_id, username, email, phone):
+async def create_user(tg_id: int, username=None, email=None, phone=None):
     try:
         await repo.create_user(tg_id, username, email, phone)
         return True
     except Exception as ex:
-        pass
+        print(ex)
 
+async def update_user(tg_id, username, email, phone):
+    try:
+        await repo.update_user(tg_id, username, email, phone)
+        return True
+    except Exception as ex:
+        print(ex)
 
 # Создать платеж
-async def create_payment(date, price, user, tour):
+async def create_payment(price, user, tour, places):
     try:
-        await repo.create_payment(date, price, user, tour)
+        await repo.create_payment(datetime.datetime.now(), price, user, tour)
+        await repo.add_user_tour(user, tour, places)
         return True
     except Exception as e:
-        pass
+        print(e)
 
 
+async def get_user(tg_id):
+    try:
+        user = await repo.get_user(tg_id)
+        if user is None:
+            return None
+        return user
+    except Exception as ex:
+        return None
+
+
+async def get_user_tour_details(user_tg_id: int, tour_name: str):
+    try:
+        details = await repo.get_user_tour_details(user_tg_id, tour_name)
+        if details is None:
+            return None
+        else:
+            return {
+                "tour_name": details.get("tour_name"),
+                "destination": details.get("destination"),
+                "description": details.get("description"),
+                "start_date": details.get("start_date"),
+                "end_date": details.get("end_date"),
+                "places": details.get("places"),
+                "price_paid": details.get("price_paid"),
+            }
+    except Exception as ex:
+        print(ex)
+
+async def get_upcoming_user_tours(user_tg_id: int):
+    try:
+        upcoming = await repo.get_upcoming_user_tours(user_tg_id)
+        if upcoming is None:
+            return None
+        tours = []
+        for up in upcoming:
+            tour = {
+                "tour_name": up.get("tour_name"),
+                "destination": up.get("destination"),
+                "start_date": up.get("start_date"),
+                "end_date": up.get("end_date"),
+            }
+            tours.append(tour)
+        return tours
+    except Exception as ex:
+        print(ex)
+
+async def get_tour(tour_name):
+    try:
+        tour = await repo.get_tour(tour_name)
+        if tour is None:
+            return None
+        return tour
+    except Exception as ex:
+        return None
 # # Обновить тур
 # async def update_tour(): pass
 #
@@ -82,21 +145,62 @@ async def get_all_tours() -> list | None:
     except Exception as ex:
         pass
 
+
+async def get_all_tours_with_places() -> list | None:
+    try:
+        all_tours = await repo.get_all_tours_with_places()
+        if all_tours is None or len(all_tours) == 0:
+            return None
+        tours = []
+        for t in all_tours:
+            tour = {
+                'Название': t.tour_name,
+                'Направление': t.tour_destination.destination,
+                'Описание': t.tour_desc,
+                'Места': t.tour_places,
+                'Даты': date_utils.format_date_range(t.start_date, t.end_date),
+                'Цена': f"{float(t.tour_price)}₽"
+            }
+            tours.append(tour)
+        return tours
+    except Exception as ex:
+        pass
+
+
+async def get_all_user_tours(user_tg_id):
+    try:
+        tour_list = await repo.get_all_user_tours(user_tg_id)
+        if tour_list is None:
+            return None
+        tours = []
+        for t in tour_list:
+            tour = {
+                'Название': t.tour_name,
+                'Направление': t.tour_destination.destination,
+                'Даты': date_utils.format_date_range(t.start_date, t.end_date),
+            }
+            tours.append(tour)
+        return tours
+    except Exception as ex:
+        print(ex)
+
+
 async def get_tour_by_name(tour_name):
     try:
         tour = await repo.get_tour_by_name(tour_name)
         if tour is None:
             return None
         return {
-                'Название': tour.tour_name,
-                'Направление': tour.tour_destination.destination,
-                'Описание': tour.tour_desc,
-                'Места': tour.tour_places,
-                'Даты': date_utils.format_date_range(tour.start_date, tour.end_date),
-                'Цена': f"{float(tour.tour_price)}₽"
-            }
+            'Название': tour.tour_name,
+            'Направление': tour.tour_destination.destination,
+            'Описание': tour.tour_desc,
+            'Места': tour.tour_places,
+            'Даты': date_utils.format_date_range(tour.start_date, tour.end_date),
+            'Цена': int(tour.tour_price)
+        }
     except Exception as ex:
         return None
+
 
 # Получить список туров по направлению
 async def get_all_tour_by_dest(destination_name):
@@ -192,6 +296,7 @@ async def get_all_users():
     except Exception as ex:
         pass
 
+
 async def get_user_by_tg_id(tg_id):
     try:
         user = await repo.get_user_by_tg_id(tg_id)
@@ -201,12 +306,12 @@ async def get_user_by_tg_id(tg_id):
             'id': user.user_tg_id,
             'name': user.user_name,
             'phone': user.user_phone,
-            'email': user.user_email,
-            'tours': [t.tour.tour_name for t in user.tours]
+            'email': user.user_email
         }
 
     except Exception as ex:
         pass
+
 
 async def get_all_users_ids():
     try:
@@ -273,6 +378,14 @@ async def get_tours_by_dates_between(date_1, date_2):
 async def add_places_on_tour(tour_name, num_of_places: int):
     try:
         await repo.add_places_on_tour(tour_name, num_of_places)
+        return True
+    except Exception as ex:
+        pass
+
+# Убрать места с тура
+async def reduce_places_on_tour(tour_name, num_of_places: int):
+    try:
+        await repo.reduce_places_on_tour(tour_name, num_of_places)
         return True
     except Exception as ex:
         pass

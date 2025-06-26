@@ -45,66 +45,13 @@ async def back_to_menu(event: CallbackQuery, state: FSMContext):
     await event.message.delete()
     await event.message.answer("Туры", reply_markup=tour_menu().as_markup())
 
+
 @admin.callback_query(F.data == "backtodirectmenu", IsAdmin())
 async def back_to_menu(event: CallbackQuery, state: FSMContext):
     await state.clear()
     await event.answer()
     await event.message.delete()
     await event.message.answer("Туры", reply_markup=direct_menu().as_markup())
-
-
-
-class AddTourPlaces(StatesGroup):
-    name = State()
-    places = State()
-
-
-@admin.callback_query(F.data == "addtourplaces", IsAdmin())
-async def add_tour_places(event: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await event.answer()
-    await event.message.delete()
-    tours = await service.get_all_tours()
-    if tours is not None:
-        builder = InlineKeyboardBuilder()
-        for _ in tours:
-            builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"addplacestouradmin_{_['Название']}"))
-        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
-        await event.message.answer("Выберите тур для информации", reply_markup=builder.as_markup())
-        await state.set_state(AddTourPlaces.name)
-    else:
-        await event.message.answer("На данный момент нет туров", reply_markup=tour_menu().as_markup())
-
-
-@admin.callback_query(F.data.startswith("addplacestouradmin_"), AddTourPlaces.name, IsAdmin())
-async def add_tour_places(event: CallbackQuery, state: FSMContext):
-    call = event.data.split("_")[1]
-    await state.update_data(name=call)
-    await event.answer()
-    await event.message.delete()
-    await event.message.answer("Введите кол-во добавляемых мест")
-    await state.set_state(AddTourPlaces.places)
-
-
-@admin.message(AddTourPlaces.places, IsAdmin())
-async def add_tour_places(event: Message, state: FSMContext):
-    state_data = await state.get_data()
-    await state.clear()
-    add_places = await service.add_places_on_tour(state_data['name'], int(event.text))
-    if add_places:
-        users_list = await service.get_all_users_ids()
-        if users_list is not None:
-            send, not_send = await notify_about_places(users_list, state_data['name'], int(event.text))
-            await event.answer(
-                text=f"Места на тур {state_data['name']} успешно добавлены\n\n"
-                     f"Кол-во человек, получивших уведомление: {send}\nНе получили: {not_send}",
-                reply_markup=tour_menu().as_markup())
-        else:
-            await event.answer(
-                text=f"Места на тур {state_data['name']} успешно добавлены\nБаза пользователей пуста для оповещения",
-                reply_markup=tour_menu().as_markup())
-    else:
-        await event.answer("При добавлении мест что-то пошло не так", reply_markup=tour_menu().as_markup())
 
 
 class AddTour(StatesGroup):
@@ -283,39 +230,6 @@ async def delete_direction(event: CallbackQuery, state: FSMContext):
         await event.message.answer("При удалении наравления возникла ошибка", reply_markup=direct_menu().as_markup())
 
 
-class DeleteTour(StatesGroup):
-    tour_name = State()
-
-
-@admin.callback_query(F.data == "deletetour", IsAdmin())
-async def delete_tour(event: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await event.answer()
-    await event.message.delete()
-    tours = await service.get_all_tours()
-    if tours is not None:
-        builder = InlineKeyboardBuilder()
-        for _ in tours:
-            builder.row(
-                InlineKeyboardButton(text=_['Название'], callback_data=f"tourtodeleteadmin_{_['Название']}"))
-        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
-        await event.message.answer("Выберите тур для удаления", reply_markup=builder.as_markup())
-        await state.set_state(DeleteTour.tour_name)
-
-
-@admin.callback_query(F.data.startswith("tourtodeleteadmin_"), DeleteTour.tour_name, IsAdmin())
-async def delete_tour(event: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await event.answer()
-    await event.message.delete()
-    call = event.data.split("_")[1]
-    deleted = await service.delete_tour(call)
-    if deleted:
-        await event.message.answer(text=f"Тур {call} успешно удален!", reply_markup=tour_menu().as_markup())
-    else:
-        await event.message.answer(text=f"При удалении тура возникла ошибка", reply_markup=tour_menu().as_markup())
-
-
 ####### TOURS AND DIRECTIONS #######
 @admin.callback_query(F.data == "bookedtours", IsAdmin())
 async def booked_tours(event: CallbackQuery, state: FSMContext):
@@ -363,21 +277,24 @@ async def tours_list(event: CallbackQuery, state: FSMContext):
     await event.answer()
     await event.message.delete()
     tours = await service.get_all_tours()
-    if tours is not None:
-        result = ["📋 <b>Список всех туров:</b>\n<i>Для подробной информации нажми на нужный тур на клавиатуре</i>\n\n"]
-        for i, tour in enumerate(tours, start=1):
-            result.append(
-                f"<b>#{i}. <code>{tour['Название']}</code></b>\n"
-                f"🔜 {tour['Направление']}\n"
-                f"📅 {tour['Даты']}\n"
-            )
-        builder = InlineKeyboardBuilder()
-        for _ in tours:
-            builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"informtouradmin_{_['Название']}"))
-        builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
-        await event.message.answer(f"{'\n'.join(result)}", reply_markup=builder.as_markup())
-    else:
+    if tours is None:
         await event.message.answer(f"<b>Пока нет туров</b>", reply_markup=tour_menu().as_markup())
+        return
+
+    result = ["📋 <b>Список всех туров:</b>\n<i>Для подробной информации нажми на нужный тур на клавиатуре</i>\n\n"]
+    for i, tour in enumerate(tours, start=1):
+        result.append(
+            f"<b>#{i}. <code>{tour['Название']}</code></b>\n"
+            f"🔜 {tour['Направление']}\n"
+            f"📅 {tour['Даты']}\n"
+        )
+
+    builder = InlineKeyboardBuilder()
+    for _ in tours:
+        builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"informtouradmin_{_['Название']}"))
+    builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
+
+    await event.message.answer(f"{'\n'.join(result)}", reply_markup=builder.as_markup())
 
 
 @admin.callback_query(F.data == "tourbydirect", IsAdmin())
@@ -450,9 +367,17 @@ async def tour_information(event: CallbackQuery, state: FSMContext):
                   f"📝 {tour['Описание']}\n"
                   f"👥 Места: {tour['Места']}\n"
                   f"📅 {tour['Даты']}\n"
-                  f"💰 {tour['Цена']}\n"
+                  f"💰 {str(tour['Цена']) + "₽"}\n"
                   ]
-        await event.message.answer(f"{"\n".join(result)}", reply_markup=tour_menu().as_markup())
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="Добавить мест на тур", callback_data=f"addplacestouradmin_{tour['Название']}"),
+            InlineKeyboardButton(text="Удалить тур", callback_data=f"tourtodeleteadmin_{tour['Название']}"),
+            InlineKeyboardButton(text="Назад", callback_data="tourlist"),
+            width=1
+        )
+        await event.message.answer(f"{"\n".join(result)}", reply_markup=builder.as_markup())
     else:
         await event.message.answer(f"<b>Пока нет туров</b>", reply_markup=tour_menu().as_markup())
 
@@ -638,6 +563,94 @@ async def user_by_email_of_phone(event: Message, state: FSMContext):
         await event.answer(f"Пользователь:\n{user}", reply_markup=user_info().as_markup())
     else:
         await event.answer(f"Такого пользователя не существует", reply_markup=user_info().as_markup())
+
+
+class AddTourPlaces(StatesGroup):
+    places = State()
+
+
+# @admin.callback_query(F.data == "addtourplaces", IsAdmin())
+# async def add_tour_places(event: CallbackQuery, state: FSMContext):
+#     await state.clear()
+#     await event.answer()
+#     await event.message.delete()
+#     tours = await service.get_all_tours()
+#     if tours is not None:
+#         builder = InlineKeyboardBuilder()
+#         for _ in tours:
+#             builder.row(InlineKeyboardButton(text=_['Название'], callback_data=f"addplacestouradmin_{_['Название']}"))
+#         builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
+#         await event.message.answer("Выберите тур для информации", reply_markup=builder.as_markup())
+#         await state.set_state(AddTourPlaces.name)
+#     else:
+#         await event.message.answer("На данный момент нет туров", reply_markup=tour_menu().as_markup())
+
+
+@admin.callback_query(F.data.startswith("addplacestouradmin_"), IsAdmin())
+async def add_tour_places(event: CallbackQuery, state: FSMContext):
+    call = event.data.split("_")[1]
+    await state.update_data(name=call)
+    await event.answer()
+    await event.message.delete()
+    await event.message.answer(
+        text="Введите кол-во добавляемых мест",
+        reply_markup=back_to("Отмена", "tourlist").as_markup()
+    )
+    await state.set_state(AddTourPlaces.places)
+
+
+@admin.message(AddTourPlaces.places, IsAdmin())
+async def add_tour_places(event: Message, state: FSMContext):
+    state_data = await state.get_data()
+    await state.clear()
+    add_places = await service.add_places_on_tour(state_data['name'], int(event.text))
+    if add_places:
+        users_list = await service.get_all_users_ids()
+        if users_list is not None:
+            send, not_send = await notify_about_places(users_list, state_data['name'], int(event.text))
+            await event.answer(
+                text=f"Места на тур {state_data['name']} успешно добавлены\n\n"
+                     f"Кол-во человек, получивших уведомление: {send}\nНе получили: {not_send}",
+                reply_markup=tour_menu().as_markup())
+        else:
+            await event.answer(
+                text=f"Места на тур {state_data['name']} успешно добавлены\nБаза пользователей пуста для оповещения",
+                reply_markup=tour_menu().as_markup())
+    else:
+        await event.answer("При добавлении мест что-то пошло не так", reply_markup=tour_menu().as_markup())
+
+
+# class DeleteTour(StatesGroup):
+#     tour_name = State()
+
+
+# @admin.callback_query(F.data == "deletetour", IsAdmin())
+# async def delete_tour(event: CallbackQuery, state: FSMContext):
+#     await state.clear()
+#     await event.answer()
+#     await event.message.delete()
+#     tours = await service.get_all_tours()
+#     if tours is not None:
+#         builder = InlineKeyboardBuilder()
+#         for _ in tours:
+#             builder.row(
+#                 InlineKeyboardButton(text=_['Название'], callback_data=f"tourtodeleteadmin_{_['Название']}"))
+#         builder.row(InlineKeyboardButton(text="Назад", callback_data="backtotourmenu"))
+#         await event.message.answer("Выберите тур для удаления", reply_markup=builder.as_markup())
+#         await state.set_state(DeleteTour.tour_name)
+
+
+@admin.callback_query(F.data.startswith("tourtodeleteadmin_"), IsAdmin())
+async def delete_tour(event: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await event.answer()
+    await event.message.delete()
+    call = event.data.split("_")[1]
+    deleted = await service.delete_tour(call)
+    if deleted:
+        await event.message.answer(text=f"Тур {call} успешно удален!", reply_markup=tour_menu().as_markup())
+    else:
+        await event.message.answer(text=f"При удалении тура возникла ошибка", reply_markup=tour_menu().as_markup())
 
 
 @admin.message(IsAdmin())

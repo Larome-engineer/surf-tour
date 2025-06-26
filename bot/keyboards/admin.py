@@ -15,13 +15,19 @@ def tour_menu():
         InlineKeyboardButton(text="Добавить тур", callback_data='addtour'),
         InlineKeyboardButton(text="Список туров", callback_data='tourlist'),
         InlineKeyboardButton(text="Тур по направлению", callback_data='tourbydirect'),
-        InlineKeyboardButton(text="Удалить тур", callback_data="deletetour"),
-        InlineKeyboardButton(text="Добавить мест на тур", callback_data='addtourplaces'),
+        # InlineKeyboardButton(text="Удалить тур", callback_data="deletetour"),
+        # InlineKeyboardButton(text="Добавить мест на тур", callback_data='addtourplaces'),
         InlineKeyboardButton(text="Забронированные туры", callback_data='bookedtours'),
         InlineKeyboardButton(text="Назад", callback_data='backtotouranddirect'),
         width=1
     )
 
+def tour_options():
+    return InlineKeyboardBuilder().row(
+        InlineKeyboardButton(text="Добавить мест на тур", callback_data='addtourplaces'),
+        InlineKeyboardButton(text="Удалить тур", callback_data="deletetour"),
+        width=1
+    )
 
 def direct_menu():
     return InlineKeyboardBuilder().row(
@@ -72,5 +78,11 @@ def user_info():
         InlineKeyboardButton(text="Telegram ID", callback_data='searchbytgid'),
         InlineKeyboardButton(text="Почта или номер телефона", callback_data='searchbyemailorphone'),
         InlineKeyboardButton(text="Назад", callback_data='backtousermenu'),
+        width=1
+    )
+
+def back_to(text, callback: str):
+    return InlineKeyboardBuilder().row(
+        InlineKeyboardButton(text=text, callback_data=callback),
         width=1
     )

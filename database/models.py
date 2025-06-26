@@ -30,9 +30,9 @@ class Tour(Model):
 class User(Model):
     user_id = fields.IntField(pk=True)
     user_tg_id = fields.BigIntField(unique=True, null=False)
-    user_name = fields.CharField(max_length=30)
-    user_email = fields.CharField(max_length=150, unique=True)
-    user_phone = fields.CharField(max_length=15, unique=True)
+    user_name = fields.CharField(max_length=30, null=True)
+    user_email = fields.CharField(max_length=150, unique=True, null=True)
+    user_phone = fields.CharField(max_length=15, unique=True, null=True)
 
     tours: fields.ReverseRelation["UsersTours"]
     payments: fields.ReverseRelation["Payment"]
@@ -40,7 +40,7 @@ class User(Model):
 
 class UsersTours(Model):
     ur_id = fields.IntField(pk=True)
-
+    ur_places = fields.IntField(null=False)
     user = fields.ForeignKeyField(
         "models.User", related_name="tours"
     )
@@ -64,5 +64,3 @@ class Payment(Model):
         "models.Tour", related_name="payments",
     )
 
-    class Meta:
-        unique_together = (("user", "tour"),)  # Если нужно ограничение как в SQL
