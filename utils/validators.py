@@ -1,3 +1,5 @@
+import re
+
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 
@@ -17,3 +19,6 @@ def is_valid_email(email: str) -> bool:
         return True
     except EmailNotValidError:
         return False
+
+def is_valid_time(text):
+    return bool(re.match(r'^\d{2}:\d{2}$', text))

@@ -1,56 +1,63 @@
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from datetime import datetime
+from utils.date_utils import MONTHS_RU, DAYS_RU
 
 
 def main_menu():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Туры и направления", callback_data='toursanddirections'),
-        InlineKeyboardButton(text="Пользователи", callback_data='users'),
+        InlineKeyboardButton(text="🏕 | 🏄 | 🗺", callback_data='ToursLessonsDirections'),
+        InlineKeyboardButton(text="👨🏻‍💻", callback_data='Users'),
         width=1
     )
 
 
-def tour_menu():
+async def tour_menu():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Добавить тур", callback_data='addtour'),
-        InlineKeyboardButton(text="Список туров", callback_data='tourlist'),
-        InlineKeyboardButton(text="Тур по направлению", callback_data='tourbydirect'),
-        # InlineKeyboardButton(text="Удалить тур", callback_data="deletetour"),
-        # InlineKeyboardButton(text="Добавить мест на тур", callback_data='addtourplaces'),
-        InlineKeyboardButton(text="Забронированные туры", callback_data='bookedtours'),
-        InlineKeyboardButton(text="Назад", callback_data='backtotouranddirect'),
+        InlineKeyboardButton(text="➕ Добавить тур", callback_data='AddTour'),
+        InlineKeyboardButton(text="📋 Список туров", callback_data='AllTourList'),
+        InlineKeyboardButton(text="🗺 Тур по направлению", callback_data='TourByDirection'),
+        InlineKeyboardButton(text="📘 Забронированные туры", callback_data='BookedTours'),
+        InlineKeyboardButton(text="🔙", callback_data='BackToTourLessonsDirections'),
         width=1
-    )
+    ).as_markup()
 
-def tour_options():
-    return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Добавить мест на тур", callback_data='addtourplaces'),
-        InlineKeyboardButton(text="Удалить тур", callback_data="deletetour"),
-        width=1
-    )
 
-def direct_menu():
+async def lesson_menu():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Добавить направление", callback_data='adddirection'),
-        InlineKeyboardButton(text="Доступные направления", callback_data='directionslist'),
-        InlineKeyboardButton(text="Удалить направление", callback_data='deletedirection'),
-        InlineKeyboardButton(text="Назад", callback_data='backtotouranddirect'),
+        InlineKeyboardButton(text="➕ Добавить урок", callback_data='AddLesson'),
+        InlineKeyboardButton(text="🧬 Добавить тип урока", callback_data="AddLessonType"),
+        InlineKeyboardButton(text="📋 Список уроков", callback_data='AllLessonList'),
+        InlineKeyboardButton(text="🗺 Урок по направлению", callback_data='LessonByDirection'),
+        InlineKeyboardButton(text="📘 Забронированные уроки", callback_data='BookedLessons'),
+        InlineKeyboardButton(text="🔙", callback_data='BackToTourLessonsDirections'),
         width=1
-    )
+    ).as_markup()
+
+
+async def direct_menu():
+    return InlineKeyboardBuilder().row(
+        InlineKeyboardButton(text="➕ Добавить направление", callback_data='AddDirection'),
+        InlineKeyboardButton(text="🗺 Доступные направления", callback_data='DirectionsList'),
+        InlineKeyboardButton(text="🗑 Удалить направление", callback_data='DeleteDirection'),
+        InlineKeyboardButton(text="🔙", callback_data='BackToTourLessonsDirections'),
+        width=1
+    ).as_markup()
 
 
 def apply_delete_dir():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Да", callback_data='deletedir_apply'),
-        InlineKeyboardButton(text="Отмена", callback_data='deletedir_decline'),
+        InlineKeyboardButton(text="Да", callback_data='DeleteDir_apply'),
+        InlineKeyboardButton(text="Отмена", callback_data='DeleteDir_decline'),
     )
 
 
-def tour_and_directions():
+def tours_lessons_directions():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Туры", callback_data='management_tour'),
-        InlineKeyboardButton(text="Направления", callback_data='management_direct'),
-        InlineKeyboardButton(text="Назад", callback_data='backtoadminmenu'),
+        InlineKeyboardButton(text="🏕 Туры 🏕", callback_data='Management_tour'),
+        InlineKeyboardButton(text="🏄 Уроки 🏄", callback_data='Management_lesson'),
+        InlineKeyboardButton(text="🗺 Направления 🗺", callback_data='Management_direct'),
+        InlineKeyboardButton(text="🔙", callback_data='BackToAdminMenu'),
         width=1
     )
 
@@ -58,10 +65,10 @@ def tour_and_directions():
 ###### USER ######
 def user_menu():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Рассылка", callback_data='usermailng'),
-        InlineKeyboardButton(text="Список пользователей", callback_data='userslist'),
-        InlineKeyboardButton(text="Информация о пользователе", callback_data='userinfo'),
-        InlineKeyboardButton(text="Назад", callback_data='backtoadminmenu'),
+        InlineKeyboardButton(text="📩 Рассылка", callback_data='UserMailing'),
+        InlineKeyboardButton(text="📚 Список пользователей", callback_data='UsersList'),
+        InlineKeyboardButton(text="👨🏻‍💻 Информация о пользователе", callback_data='UsersInfo'),
+        InlineKeyboardButton(text="🔙", callback_data='BackToAdminMenu'),
         width=1
     )
 
@@ -75,14 +82,229 @@ def confirm_mailing():
 
 def user_info():
     return InlineKeyboardBuilder().row(
-        InlineKeyboardButton(text="Telegram ID", callback_data='searchbytgid'),
-        InlineKeyboardButton(text="Почта или номер телефона", callback_data='searchbyemailorphone'),
-        InlineKeyboardButton(text="Назад", callback_data='backtousermenu'),
+        InlineKeyboardButton(text="🆔 Telegram ID", callback_data='SearchByTgId'),
+        InlineKeyboardButton(text="✉️/📞 Почта или номер телефона", callback_data='SearchByPhoneOrEmail'),
+        InlineKeyboardButton(text="🔙", callback_data='BackToUsersMenu'),
         width=1
     )
 
-def back_to(text, callback: str):
+
+async def back_to(text, callback: str):
+    return InlineKeyboardBuilder().row(
+        InlineKeyboardButton(text=text, callback_data=callback),
+        width=1
+    ).as_markup()
+
+
+def one_button_callback(text, callback):
     return InlineKeyboardBuilder().row(
         InlineKeyboardButton(text=text, callback_data=callback),
         width=1
     )
+
+
+async def simple_build_dynamic_keyboard(
+        list_of_values: list = None,
+        value_key: str = None,
+        callback: str = None,
+        back_callback: str = None,
+        text: str = None,
+        back_text: str = "🔙",
+        row_width: int = 1
+):
+    keyboard = InlineKeyboardBuilder()
+
+    if list_of_values is None:
+        keyboard.row(InlineKeyboardButton(
+            text=text,
+            callback_data=f'{callback}{value_key}'
+        ))
+        keyboard.row(InlineKeyboardButton(
+            text=back_text,
+            callback_data=back_callback
+        ))
+        return keyboard.as_markup()
+
+    # Генерация кнопок из списка
+    buttons = [
+        InlineKeyboardButton(
+            text=value[value_key] if value_key else str(value),
+            callback_data=f"{callback}{value[value_key] if value_key else str(value)}"
+        )
+        for value in list_of_values
+    ]
+    keyboard.add(*buttons)
+    keyboard.adjust(row_width)
+
+    # Кнопка назад
+    if back_callback:
+        keyboard.row(InlineKeyboardButton(
+            text=back_text,
+            callback_data=back_callback
+        ))
+
+    return keyboard.as_markup()
+
+
+def generate_entity_options(list_of_text: list[str], list_of_callback: list[str], entity, entity_key):
+    keyboard = InlineKeyboardBuilder()
+    for i in range(len(list_of_callback)):
+        if list_of_text[i] != "🔙" and not list_of_callback[i].startswith("All"):
+            cb_data = f"{list_of_callback[i]}{entity[entity_key]}"
+        else:
+            cb_data = f"{list_of_callback[i]}"
+
+        keyboard.row(
+            InlineKeyboardButton(
+                text=list_of_text[i],
+                callback_data=cb_data
+            )
+        )
+    return keyboard
+
+
+async def buttons_by_entity_list_values(entity_list, callback, back_to_callback):
+    builder = InlineKeyboardBuilder()
+    for entity in entity_list:
+        builder.row(InlineKeyboardButton(text=entity.type, callback_data=f"{callback}{entity.type}"))
+    builder.row(InlineKeyboardButton(text="🔙", callback_data=back_to_callback))
+    return builder.as_markup()
+
+
+async def generate_lesson_kb(lessons, callback, back_callback):
+    builder = InlineKeyboardBuilder()
+    for lsn in lessons:
+        date = datetime.strptime(lsn['start_date'], "%d.%m.%Y")
+        type_lsn_text = lsn['type'].split(" ")
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{type_lsn_text[0][:3]}.{type_lsn_text[1]} | "
+                     f"{DAYS_RU[date.weekday()]}, {date.day} {MONTHS_RU[date.month]} | "
+                     f"{lsn['time']}",
+                callback_data=f"{callback}{lsn['unicode']}"
+            )
+        )
+    builder.row(InlineKeyboardButton(text="🔙", callback_data=back_callback))
+    return builder.as_markup()
+
+
+async def build_lessons_pagination_keyboard(
+        lessons: list,
+        page: int = 0,
+        items_per_page: int = 2,
+        back_callback: str = None
+):
+    keyboard = InlineKeyboardBuilder()
+    start = page * items_per_page
+    end = start + items_per_page
+    page_items = lessons[start:end]
+
+    for l in page_items:
+        date = datetime.strptime(l['start_date'], "%d.%m.%Y")
+        label = f"{DAYS_RU[date.weekday()]}, {date.day} {MONTHS_RU[date.month]} | {l['time']}"
+        keyboard.button(
+            text=label,
+            callback_data=f"InfoAboutLesson_{l['unicode']}"
+        )
+    keyboard.adjust(1)
+
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"LessonsList_page:{page - 1}"
+            )
+        )
+
+    if back_callback:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="🔙 МЕНЮ",
+                callback_data=back_callback
+            )
+        )
+
+    if end < len(lessons):
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Вперёд ➡️",
+                callback_data=f"LessonsList_page:{page + 1}"
+            )
+        )
+    if nav_buttons:
+        keyboard.row(*nav_buttons)
+
+    return keyboard.as_markup()
+
+
+async def build_tours_pagination_keyboard(
+        list_of_tours: list = None,
+        value_key: str = "name",
+        callback: str = None,
+        back_callback: str = None,
+        back_text: str = "🔙",
+        row_width: int = 1,
+        page: int = 0,
+        items_per_page: int = 2
+):
+    keyboard = InlineKeyboardBuilder()
+
+    if list_of_tours is None or len(list_of_tours) == 0:
+        keyboard.row(
+            InlineKeyboardButton(
+                text="❌ Туров нет",
+                callback_data="NoTours"
+            )
+        )
+        if back_callback:
+            keyboard.row(
+                InlineKeyboardButton(
+                    text=back_text,
+                    callback_data=back_callback
+                )
+            )
+        return keyboard.as_markup()
+
+    # Срез по странице
+    start = page * items_per_page
+    end = start + items_per_page
+    page_items = list_of_tours[start:end]
+
+    for tour in page_items:
+        label = f"{tour[value_key]} | {tour.get('start_date', '')}"
+        keyboard.button(
+            text=label,
+            callback_data=f"{callback}{tour[value_key]}"
+        )
+    keyboard.adjust(row_width)
+
+    # Кнопки пагинации
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"{callback}page:{page - 1}"
+            )
+        )
+
+    if back_callback:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="🔙 МЕНЮ",
+                callback_data=back_callback
+            )
+        )
+
+    if end < len(list_of_tours):
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Вперёд ➡️",
+                callback_data=f"{callback}page:{page + 1}"
+            )
+        )
+    if nav_buttons:
+        keyboard.row(*nav_buttons)
+
+    return keyboard.as_markup()
