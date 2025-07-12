@@ -39,11 +39,13 @@ async def update_user(user_updated: User) -> bool:
     if user is not None:
         if user_updated.user_name is not None:
             user.user_name = user_updated.user_name
+            await user.save(update_fields=["user_name"])
         if user_updated.user_email is not None:
             user.user_email = user_updated.user_email
+            await user.save(update_fields=["user_email"])
         if user_updated.user_phone is not None:
             user.user_phone = user_updated.user_phone
-        await user.save()
+            await user.save(update_fields=["user_phone"])
         return True
     else:
         return False
@@ -443,3 +445,13 @@ async def has_future_bookings_for_destination(dest_name: str) -> bool:
                 return True
 
     return False
+
+
+async def disable_notifications(tg_id) -> bool:
+    try:
+        user = await get_user_by_tg_id(tg_id)
+        user.user_enable_notifications = False
+        await user.save()
+        return True
+    except Exception as e:
+        pass

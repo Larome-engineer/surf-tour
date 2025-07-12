@@ -2,18 +2,19 @@ from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery, SuccessfulPayment, BufferedInputFile
+from aiogram.types import Message, CallbackQuery, LabeledPrice
 
 from bot.config import PROVIDER_TOKEN
-from bot.handlers.handler_utils import clear_and_delete, answer_and_delete
+from bot.create import payment_payload
+from bot.handlers.handler_utils import (
+    edit_and_answer, send_by_instance, safe_answer,
+    safe_delete, safe_edit_text, get_and_clear
+)
 from bot.keyboards.user import *
 from database import service
-from utils.generate_pdf import generate_invoice_pdf_tour
 from utils.validators import is_valid_email, is_valid_phone
 
 user_tour = Router()
-
-payload_tour = {}
 
 
 # --------------------
@@ -29,39 +30,36 @@ class UserBookTour(StatesGroup):
 
 
 @user_tour.callback_query(F.data.startswith("StartBookingTour_"))
-async def book_tour(event: CallbackQuery, state: FSMContext):
+async def start_book_tour(event: CallbackQuery, state: FSMContext):
+    await state.clear()
     tour_name = event.data.split("_")[1]
-    await answer_and_delete(event)
 
-    t = await service.get_tour_by_name(tour_name)
-    if t is None:
-        await event.message.answer("Такого тура не существует")
+    tour = await service.get_tour_by_name(tour_name)
+    if not tour:
+        await edit_and_answer(event, "Такого тура не существует", user_main_menu())
         return
-    if t['places'] <= 0:
-        await event.message.answer("Места на тур закончились")
+    if tour['places'] <= 0:
+        await edit_and_answer(event, "Места на тур закончились", user_main_menu())
         return
 
-    tour = await service.get_user_tour_details(event.from_user.id, tour_name)
-    if tour is not None:
-        await event.message.answer(
-            text=f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-                 f"Наименование тура: {tour_name}\n\n"
-                 f"Тур уже находится в списке предстоящих туров. ",
-            reply_markup=user_main_menu().as_markup()
+    tour_naming = f"🎫<b>ТУР | БРОНИРОВАНИЕ </b>\nНаименование тура: {tour_name}"
+    already_tour = await service.get_user_tour_details(event.from_user.id, tour_name)
+
+    if already_tour:
+        await edit_and_answer(
+            event,
+            text=f"{tour_naming}\n\n❗️ Тур уже находится в списке предстоящих туров.",
+            reply_markup=user_main_menu()
         )
         return
 
-    await state.update_data(tour=tour_name)
+    await state.update_data(tour_name=tour_name, tour_naming=tour_naming)
+
     user_info = await service.get_user_by_tg_id(event.from_user.id)
     if user_info['name'] is None or user_info['phone'] is None or user_info['email'] is None:
         await event.message.answer(
-            text=f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-                 f"Наименование тура: {tour_name}\n\n"
-                 f"Отправьте Ваше имя и фамилию",
-            reply_markup=cancel_or_back_to(
-                text="Отменить бронирование",
-                callback="BackToUserMainMenu"
-            ).as_markup()
+            text=f"{tour_naming}\n\n• Отправьте Ваше имя и фамилию",
+            reply_markup=cancel_or_back_to(text="✖️ Отменить бронирование", callback="BackToUserMainMenu")
         )
         await state.set_state(UserBookTour.username)
     else:
@@ -74,13 +72,8 @@ async def book_tour(event: Message, state: FSMContext):
     state_data = await state.get_data()
     await state.update_data(name=event.text)
     await event.answer(
-        text=f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-             f"Наименование тура: {state_data['tour']}\n\n"
-             f"Отправьте Ваш email",
-        reply_markup=cancel_or_back_to(
-            text="Отменить бронирование",
-            callback="BackToUserMainMenu"
-        ).as_markup()
+        text=f"{state_data['tour_naming']}\n\n• Отправьте Ваш email",
+        reply_markup=cancel_or_back_to(text="✖️ Отменить бронирование", callback="BackToUserMainMenu")
     )
     await state.set_state(UserBookTour.email)
 
@@ -91,24 +84,15 @@ async def book_tour(event: Message, state: FSMContext):
     if is_valid_email(event.text):
         await state.update_data(email=event.text)
         await event.answer(
-            text=f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-                 f"Наименование тура: {state_data['tour']}\n\n"
-                 f"Отправьте Ваш номер телефона",
-            reply_markup=cancel_or_back_to(
-                text="Отменить бронирование",
-                callback="BackToUserMainMenu"
-            ).as_markup()
+            text=f"{state_data['tour_naming']}\n\n• Отправьте Ваш номер телефона",
+            reply_markup=cancel_or_back_to(text="✖️ Отменить бронирование", callback="BackToUserMainMenu")
         )
         await state.set_state(UserBookTour.phone)
     else:
         await event.answer(
-            text=f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-                 f"Наименование тура: {state_data['tour']}\n\n"
-                 f"EMAIL {event.text} некорректный! Попробуйте ещё раз\n\nОтправьте Ваш email",
-            reply_markup=cancel_or_back_to(
-                text="Отменить бронирование",
-                callback="BackToUserMainMenu"
-            ).as_markup()
+            text=f"{state_data['tour_naming']}\n\n"
+                 f"EMAIL <b>{event.text}</b> некорректный! Попробуйте ещё раз\n\n• Отправьте Ваш email",
+            reply_markup=cancel_or_back_to(text="✖️ Отменить бронирование", callback="BackToUserMainMenu")
         )
         await state.set_state(UserBookTour.email)
 
@@ -127,33 +111,31 @@ async def book_tour_applying(event: Message | CallbackQuery, state: FSMContext):
                     if not updated:
                         await state.clear()
                         await event.answer(
-                            text="При заполнении Ваших данных что-то пошло не так. Попробуйте позднее",
-                            reply_markup=user_main_menu().as_markup()
+                            text=f"{data['tour_naming']}\n\n⛔️ При заполнении Ваших данных что-то пошло не так. Попробуйте позднее",
+                            reply_markup=user_main_menu()
                         )
                         return
             else:
                 await event.answer(
-                    text=f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-                         f"Наименование урока: {data['lesson']['type']}\n\n"
-                         f"Номер телефона {event.text} некорректный! Попробуйте ещё раз\n\n"
+                    text=f"{data['tour_naming']}\n\n"
+                         f"Номер телефона {event.text} некорректный! Попробуйте ещё раз\n\n• "
                          f"Отправьте Ваш номер телефона",
-                    reply_markup=cancel_or_back_to(
-                        text="Отменить бронирование",
-                        callback="BackToUserMainMenu"
-                    ).as_markup()
+                    reply_markup=cancel_or_back_to(text="✖️ Отменить бронирование", callback="BackToUserMainMenu")
                 )
                 await state.set_state(UserBookTour.phone)
                 return
 
     book_places = 1
-    tour_info = await service.get_tour_by_name(data['tour'])
-
+    tour_info = await service.get_tour_by_name(data['tour_name'])
     price = tour_info['price'] * book_places
-    await state.update_data(price=price)
-    await state.update_data(places=book_places)
-    await state.update_data(desc=tour_info['desc'])
-    user_entity = await service.get_user_by_tg_id(event.from_user.id)
 
+    await state.update_data(
+        price=price,
+        places=book_places,
+        desc=tour_info['desc']
+    )
+
+    user_entity = await service.get_user_by_tg_id(event.from_user.id)
     text = (
         f"🎫 <b>ПОДТВЕРДЖЕНИЕ БРОНИРОВАНИЯ</b> 🎫\n\n"
         f"Участник:\n"
@@ -162,45 +144,37 @@ async def book_tour_applying(event: Message | CallbackQuery, state: FSMContext):
         f"🗺 {tour_info['dest']}\n"
         f"📝 {tour_info['desc']}\n"
         f"👥 Кол-во бронируемых мест: {book_places}\n"
-        f"👥 Время начала: {tour_info['time']}\n"
+        f"⏰ Время начала: {tour_info['time']}\n"
         f"📅 {tour_info['start_date']} - {tour_info['end_date']}\n"
         f"💶 {price}\n"
     )
 
-    if isinstance(event, CallbackQuery):
-        await event.message.answer(
-            text=text,
-            reply_markup=confirm_booking('ApplyUserTourBooking').as_markup()
-        )
-
-    if isinstance(event, Message):
-        await event.answer(
-            text=text,
-            reply_markup=confirm_booking('ApplyUserTourBooking').as_markup()
-        )
+    await send_by_instance(event, text=text, reply_markup=confirm_booking('ApplyUserTourBooking'))
     await state.set_state(UserBookTour.apply)
 
 
 @user_tour.callback_query(F.data == "ApplyUserTourBooking", UserBookTour.apply)
 async def book_tour_send_invoice(event: CallbackQuery, state: FSMContext):
-    state_data = await state.get_data()
-    await state.clear()
-    price: int = state_data['price']
+    state_data = await get_and_clear(state)
 
-    payload_tour[event.from_user.id] = {
-        "places": state_data['places'],
-        "price": price,
+    price: int = state_data['price']
+    payment_payload[event.from_user.id] = {
+        "tour": {
+            "places": state_data['places'],
+            "price": price,
+            "tour_name": f"{state_data['tour_name']}"
+        }
     }
 
-    await event.answer()
-    await event.message.delete()
+    await safe_answer(event)
+    await safe_delete(event)
 
-    prices = [LabeledPrice(label=state_data['tour'], amount=price * 100)]
+    prices = [LabeledPrice(label=state_data['tour_name'], amount=price * 100)]
     await event.bot.send_invoice(
         chat_id=event.from_user.id,
-        title=state_data['tour'],
+        title=state_data['tour_name'],
         description=state_data['desc'],
-        payload=f"{state_data['tour']} | {event.from_user.id}",
+        payload=f"event: {event.data}",
         provider_token=PROVIDER_TOKEN,
         currency="RUB",
         prices=prices,
@@ -211,179 +185,163 @@ async def book_tour_send_invoice(event: CallbackQuery, state: FSMContext):
     )
 
 
-@user_tour.pre_checkout_query()
-async def process_pre_checkout(event: PreCheckoutQuery):
-    tour_name = event.invoice_payload.split("|")[0].strip()
-    tour = await service.get_tour_by_name(tour_name)
-    if not tour or int(tour['places']) <= 0:
-        await event.answer(
-            ok=False,
-            error_message="❌ Места закончились(\n\nЭтот тур больше недоступен.",
-        )
-        await event.bot.send_message(
-            chat_id=event.from_user.id,
-            text="Главное меню",
-            reply_markup=user_main_menu().as_markup()
-        )
-        return
-    await event.answer(ok=True)
-
-
-@user_tour.message(F.successful_payment)
-async def successful_payment(event: SuccessfulPayment):
-    payment_info: SuccessfulPayment = event.successful_payment
-    payload_data: str = payment_info.invoice_payload
-
-    tour_name: str = payload_data.split("|")[0].strip()
-    places: int = int(payload_tour[event.from_user.id]['places'])
-    price: int = int(payload_tour[event.from_user.id]['price'])
-
-    tour = await service.get_tour_by_name(tour_name)
-    user_entity = await service.get_user_by_tg_id(event.from_user.id)
-
-    paid = await service.create_tour_payment(
-        tg_id=event.from_user.id, price=price, tour_name=tour_name
-    )
-
-    if paid:
-        await service.reduce_places_on_tour(tour_name=tour_name, count=places)
-        result = [f"<b> 🎫 БРОНИРОВАНИЕ ПОДТВЕРЖДЕНО 🎫</b>\n\n"
-                  f"🏕 {tour_name}\n"
-                  f"🗺 {tour['dest']}\n"
-                  f"🗺 {tour['desc']}\n"
-                  f"Время: {tour['time']}\n"
-                  f"📅 Даты: {tour['start_date']} - {tour['end_date']}\n"
-                  f"👥 Забронированных мест: {places}\n"
-                  f"💶 Оплачено: {price}\n"
-                  ]
-
-        pdf = await generate_invoice_pdf_tour(
-            user_name=user_entity.user_name,
-            name=tour_name,
-            destination=tour['dest'],
-            start_date=tour['start_date'],
-            time=tour['time'],
-            end_date=tour['end_date'],
-            places=places,
-            price=price,
-        )
-
-        pdf_file = BufferedInputFile(pdf.getvalue(),
-                                     filename=f"Бронирование_{tour_name} | {user_entity['name']}.pdf")
-        await event.bot.send_document(chat_id=event.from_user.id, document=pdf_file)
-        await event.answer(f"{'\n'.join(result)}", reply_markup=user_main_menu().as_markup())
-    else:
-        await event.answer(
-            text=f"При сохранении оплаты что-то пошло не так, однако оплата прошла и Ваш чек доступен Вам!",
-            reply_markup=user_main_menu().as_markup()
-        )
-
-
+# --------------------
+# GETTER | UPCOMING
+# --------------------
 @user_tour.callback_query(F.data == "UpcomingUserTours")
 async def upcoming_tours_list(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
+    await state.clear()
+    await safe_answer(event)
+    user_tours = await service.get_upcoming_user_tours(event.from_user.id)
 
-    tours = await service.get_upcoming_user_tours(event.from_user.id)
-
-    if tours is not None and len(tours) != 0:
-        result = [f"<b>🔜 ВАШИ ПРЕДСТОЯЩИЕ ТУРЫ 🔜</b>\n\n"]
-        for i, tour in enumerate(tours, start=1):
-            result.append(
-                f"🏕 {tour['name']}\n"
-                f"🗺 {tour['dest']}\n"
-                f"🗺 {tour['time']}\n"
-                f"📅 {tour['start_date']} - {tour['end_date']}\n"
-            )
-
-        await event.message.answer(
-            text=f"{'\n'.join(result)}",
-            reply_markup=generate_keyboard(
-                list_of_values=tours,
-                value_key='name',
-                callback='UpcomingUserTours_',
-                back_callback='UserAccount'
-            ).as_markup()
+    if not user_tours:
+        await edit_and_answer(
+            event,
+            text=f"<b>✖️🏕 У Вас пока нет предстоящих туров туров</b>",
+            reply_markup=user_account_menu()
         )
-    else:
-        await event.message.answer(
-            text=f"<b>У Вас пока нет предстоящих туров туров</b>",
-            reply_markup=user_account_menu().as_markup()
+        return
+
+    result = [f"<b>🏕🔜 ВАШИ ПРЕДСТОЯЩИЕ ТУРЫ </b>\n\n"]
+    # for i, tour in enumerate(user_tours, start=1):
+    #     result.append(
+    #         f"🏕 {tour['name']}\n"
+    #         f"🗺 {tour['dest']}\n"
+    #         f"🗺 {tour['time']}\n"
+    #         f"📅 {tour['start_date']} - {tour['end_date']}\n"
+    #     )
+
+    await safe_edit_text(
+        event,
+        text=f"{'\n'.join(result)}",
+        reply_markup=build_tours_upcoming_pagination_keyboard(
+            list_of_tours=user_tours,
+            value_key='name',
+            callback='UpcomingUserTours_',
+            back_callback='UserAccount'
         )
+    )
 
 
 @user_tour.callback_query(F.data.startswith("UpcomingUserTours_"))
 async def upcoming_tour_details(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
+    await state.clear()
+    await safe_answer(event)
     details = await service.get_user_tour_details(event.from_user.id, event.data.split("_")[1])
 
-    text = (f"<b>🏕 {details['name']}</b>\n\n"
-            f"🗺 {details['dest']}\n"
-            f"📝 {details['desc']}\n"
-            f"👥 Всего забронировано мест: {details['places']}\n"
-            f"👥 Время начала: {details['time']}\n"
-            f"📅 {details['start_date']} - {details['end_date']}\n"
-            f"💶 {details['paid']}\n"
+    if event.data.startswith("UpcomingUserTours_page:"):
+        user_tours = await service.get_upcoming_user_tours(event.from_user.id)
+        page = int(event.data.split(":")[1])
+        await safe_edit_text(
+            event,
+            f"<b>🏕🔜 ВАШИ ПРЕДСТОЯЩИЕ ТУРЫ </b>\n\n• Страница {page + 1}",
+            reply_markup=build_tours_upcoming_pagination_keyboard(
+                list_of_tours=user_tours,
+                page=page,
+                callback="MoreAboutTour_",
+                back_callback="UserAccount"
             )
-    await event.message.answer(
+        )
+        return
+
+    text = (
+        f"<b>🏕 {details['name']}</b>\n\n"
+        f"🗺 {details['dest']}\n"
+        f"📝 {details['desc']}\n"
+        f"👥 Всего забронировано мест: {details['places']}\n"
+        f"⏰ Время начала: {details['time']}\n"
+        f"📅 {details['start_date']} - {details['end_date']}\n"
+        f"💶 {details['paid']}\n"
+    )
+
+    await safe_edit_text(
+        event,
         text=text,
         reply_markup=cancel_or_back_to(
             text="Назад",
-            callback="upcomingUserTours"
-        ).as_markup()
+            callback="UpcomingUserTours"
+        )
     )
 
 
 @user_tour.callback_query(F.data == "AllToursWithFreePlaces")
 async def tours_list(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
+    await state.clear()
+    await safe_answer(event)
     tours = await service.get_all_tours_with_places()
-    if tours is not None:
-        result = ["📋 <b>СПИСОК ДОСТУПНЫХ ТУРОВ:</b>\nДля подробной информации нажми на нужный тур на клавиатуре\n\n"]
-        for i, tour in enumerate(tours, start=1):
-            result.append(
-                f"<b>#{i}. <code>{tour['name']}</code></b>\n"
-                f"🗺 {tour['dest']}\n"
-                f"👥 Свободные места: {tour['places']}\n"
-                f"👥 Время начала: {tour['time']}\n"
-                f"📅 Даты: {tour['start_date']} - {tour['end_date']}\n"
-            )
+    if not tours:
+        await edit_and_answer(event, f"<b>✖️🏕 Пока нет туров</b>", reply_markup=user_main_menu())
+        return
 
-        await event.message.answer(
-            text=f"{'\n'.join(result)}",
-            reply_markup=generate_keyboard(
-                list_of_values=tours,
-                value_key='name',
-                callback='MoreAboutTour_',
-                back_callback='BackToUserMainMenu'
-            ).as_markup()
+    result = [
+        "🏕 <b>СПИСОК ДОСТУПНЫХ ТУРОВ</b> 🏕\n"
+        "• Для подробной информации нажми на нужный тур на клавиатуре\n\n"
+    ]
+
+    # for i, tour in enumerate(tours, start=1):
+    #     result.append(
+    #         f"<b>#{i}. <code>{tour['name']}</code></b>\n"
+    #         f"🗺 {tour['dest']}\n"
+    #         f"👥 Свободные места: {tour['places']}\n"
+    #         f"👥 Время начала: {tour['time']}\n"
+    #         f"📅 Даты: {tour['start_date']} - {tour['end_date']}\n"
+    #     )
+
+    await safe_edit_text(
+        event,
+        text=f"{'\n'.join(result)}",
+        reply_markup=build_tours_pagination_keyboard(
+            list_of_tours=tours,
+            value_key='name',
+            callback='MoreAboutTour_',
+            back_callback='BackToUserMainMenu'
         )
-    else:
-        await event.message.answer(f"<b>Пока нет туров</b>", reply_markup=user_main_menu().as_markup())
+    )
 
 
 @user_tour.callback_query(F.data.startswith("MoreAboutTour_"))
 async def tour_information(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
-    call = event.data.split('_')[1]
-    tour = await service.get_tour_by_name(call)
-    if tour is not None:
-        result = [f"<b>🏕 {tour['name'].upper()}</b>\n\n"
-                  f"🗺 {tour['dest']}\n"
-                  f"📝 {tour['desc']}\n"
-                  f"👥 Свободные места: {tour['places']}\n"
-                  f"👥 Время начала: {tour['time']}\n"
-                  f"📅 {tour['start_date']} - {tour['end_date']}\n"
-                  f"💶 {tour['price']}₽\n"
-                  ]
+    await state.clear()
+    await safe_answer(event)
 
-        await event.message.answer(
-            text=f"{"\n".join(result)}",
-            reply_markup=generate_keyboard(
-                text="Забронировать тур",
-                callback="StartBookingTour_",
-                value_key=tour['name'],
-                back_callback="AllToursWithFreePlaces"
-            ).as_markup()
+    if event.data.startswith("MoreAboutTour_page:"):
+        user_tours = await service.get_all_tours_with_places()
+        page = int(event.data.split(":")[1])
+        await safe_edit_text(
+            event,
+            f"🏕 <b>СПИСОК ДОСТУПНЫХ ТУРОВ</b> 🏕</b>\n• Страница {page + 1}",
+            reply_markup=build_tours_pagination_keyboard(
+                list_of_tours=user_tours,
+                page=page,
+                callback="MoreAboutTour_",
+                back_callback="UserAccount"
+            )
         )
-    else:
-        await event.message.answer(f"<b>Пока нет туров</b>", reply_markup=user_main_menu().as_markup())
+        return
+
+    tour = await service.get_tour_by_name(event.data.split('_')[1])
+
+    if not tour:
+        await edit_and_answer(event, f"<b>🏕✖️ Пока нет доступных туров</b>", reply_markup=user_main_menu())
+        return
+
+    result = [
+        f"<b>🏕 {tour['name'].upper()}</b>\n\n"
+        f"🗺 {tour['dest']}\n"
+        f"📝 {tour['desc']}\n"
+        f"👥 Свободные места: {tour['places']}\n"
+        f"⏰ Время начала: {tour['time']}\n"
+        f"📅 {tour['start_date']} - {tour['end_date']}\n"
+        f"💶 {tour['price']}₽\n"
+    ]
+
+    await safe_edit_text(
+        event,
+        text=f"{"\n".join(result)}",
+        reply_markup=generate_keyboard(
+            text="Забронировать тур",
+            callback="StartBookingTour_",
+            value_key=tour['name'],
+            back_callback="AllToursWithFreePlaces"
+        )
+    )

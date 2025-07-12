@@ -1,6 +1,7 @@
 import datetime
 import logging
 
+import utils.export
 from utils.serializer import *
 from . import repository
 from .models import *
@@ -100,7 +101,7 @@ async def get_upcoming_user_tours(tg_id):
 
         result = []
         for ut in user_tours:
-            payment = await repository.get_user_tour_payment(ut.user.user_id, ut.tour.tour_id)
+            payment = await repository.get_user_tour_payment(ut.user_id, ut.tour_id)
             result.append(serialize_tour(ut.tour, payment))
         return result
 
@@ -114,7 +115,7 @@ async def get_user_lesson_details(tg_id, code):
         us = await repository.get_user_lesson_details(tg_id, code)
         if not us:
             return None
-        payment = await repository.get_user_lesson_payment(us.user.user_id, us.surf.surf_id)
+        payment = await repository.get_user_lesson_payment(us.user_id, us.surf_id)
         return serialize_lesson(us.surf, payment)
 
     except Exception as e:
@@ -128,7 +129,7 @@ async def get_user_tour_details(tg_id, tour_name):
         if not ut:
             return None
 
-        payment = await repository.get_user_tour_payment(ut.user.user_id, ut.tour.tour_id)
+        payment = await repository.get_user_tour_payment(ut.user_id, ut.tour_id)
         return serialize_tour(ut.tour, payment)
     except Exception as e:
         logger.exception("Ошибка в get_user_tour_details:", e)
@@ -327,7 +328,7 @@ async def get_upcoming_user_lessons(tg_id):
 
         result = []
         for us in user_surfs:
-            payment = await repository.get_user_lesson_payment(us.user.user_id, us.surf.surf_id)
+            payment = await repository.get_user_lesson_payment(us.user_id, us.surf_id)
             result.append(serialize_lesson(surf=us.surf, payment=payment))
         return result
 
@@ -593,3 +594,21 @@ async def has_future_bookings_for_destination(destination) -> bool | None:
         return has_booked
     except Exception as e:
         logger.exception(e)
+
+
+async def disable_notifications(tg_id):
+    try:
+        disabled = await repository.disable_notifications(tg_id)
+        return disabled
+    except Exception as e:
+        logger.exception(e)
+
+async def export_db():
+    try:
+        export = await utils.export.export_all_models_to_excel()
+        if export is None or export.getbuffer().nbytes == 0:
+            return False
+        return export
+    except Exception as e:
+        logger.error(e)
+        return False

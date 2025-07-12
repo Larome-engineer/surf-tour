@@ -22,8 +22,18 @@ def format_date_range(start: datetime.date, end: datetime.date) -> str:
     end_str = f"{end.day} {MONTHS_RU[end.month]}"
     return f"{start_str} – {end_str}"
 
+
 def parse_date(date_str: str) -> date | None:
     try:
         return datetime.strptime(date_str, "%d.%m.%Y").date()
     except ValueError:
         return None
+
+
+def perform_date(lesson_date: datetime | str, lesson_time: str) -> str:
+    if isinstance(lesson_date, str):
+        lesson_date = parse_date(lesson_date)
+    return (
+        f"{DAYS_RU[lesson_date.weekday()]}, {lesson_date.day} "
+        f"{MONTHS_RU[lesson_date.month]} | {lesson_time}"
+    )

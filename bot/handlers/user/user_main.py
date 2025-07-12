@@ -1,15 +1,24 @@
+from typing import Awaitable
+
 from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
 
-from bot.handlers.handler_utils import clear_and_delete
+from bot.config import NOTIFICATION_CHAT
+from bot.create import surf_bot, payment_payload
+from bot.handlers.handler_utils import clear_and_edit, edit_and_answer, safe_answer, safe_edit_text, safe_send
 from bot.keyboards.user import *
 from database import service
+from utils.set_commands import set_user_commands
 from utils.validators import is_valid_email, is_valid_phone
 
 user_main = Router()
+
+HELLO_MSG = "<b>🏠 ГЛАВНОЕ МЕНЮ</b>"
+DATA_CHANGE = "<b>♻️ ИЗМЕНЕНИЕ ДАННЫХ</b>"
+MAIN_MENU = "<b>🏠 ГЛАВНОЕ МЕНЮ</b>"
 
 
 # --------------------
@@ -17,11 +26,32 @@ user_main = Router()
 # --------------------
 @user_main.message(CommandStart())
 async def start(event: Message, state: FSMContext):
+    try:
+        payment_payload.pop(event.from_user.id)
+    except Exception:
+        pass
     await state.clear()
     user_info = await service.get_user_by_tg_id(event.from_user.id)
     if user_info is None:
         await service.create_user(tg_id=event.from_user.id)
-    await event.answer("Добро пожаловать!", reply_markup=user_main_menu().as_markup())
+        await safe_send(
+            text=f"Новый пользователь зашел в бота! 🙋🏻✅\n🆔 {event.from_user.id}",
+            chat_id=NOTIFICATION_CHAT
+        )
+    await set_user_commands(surf_bot, event.from_user.id)
+    await event.answer(HELLO_MSG, reply_markup=user_main_menu())
+
+
+@user_main.callback_query(F.data == "DisableNotifications")
+async def disable_notifications(event: CallbackQuery):
+    disabled = await service.disable_notifications(event.from_user.id)
+    if disabled:
+        await edit_and_answer(event, text="✖️📨 <b>Уведомления отключены!</b>")
+    else:
+        await edit_and_answer(
+            event,
+            text="✖️ При отключении уведомлений что-то пошло не так...\n\nПопробуйте в другой раз"
+        )
 
 
 # --------------------
@@ -29,15 +59,21 @@ async def start(event: Message, state: FSMContext):
 # --------------------
 @user_main.callback_query(F.data == "UserAccount")
 async def user_account(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
+    await safe_answer(event)
+    await state.clear()
     user_info = await service.get_user_by_tg_id(event.from_user.id)
     if user_info is not None:
-        result = [f"<b>🆔 {user_info['tg_id']}</b>\n\n"
-                  f"👨🏻‍💻: {user_info['name'] if user_info['name'] is not None else "-"}\n"
-                  f"📞: {user_info['phone'] if user_info['phone'] is not None else "-"}\n"
-                  f"📧: {user_info['email'] if user_info['email'] is not None else "-"}\n"
-                  ]
-        await event.message.answer(f"{"\n".join(result)}", reply_markup=user_account_menu().as_markup())
+        result = [
+            f"<b>🆔 {user_info['tg_id']}</b>\n\n"
+            f"👨🏻‍💻: {user_info['name'] if user_info['name'] is not None else "-"}\n"
+            f"📞: {user_info['phone'] if user_info['phone'] is not None else "-"}\n"
+            f"📧: {user_info['email'] if user_info['email'] is not None else "-"}\n"
+        ]
+        await safe_edit_text(
+            event=event,
+            text=f"{"\n".join(result)}",
+            reply_markup=user_account_menu()
+        )
 
 
 # --------------------
@@ -45,9 +81,13 @@ async def user_account(event: CallbackQuery, state: FSMContext):
 # --------------------
 @user_main.callback_query(F.data == "BackToUserMainMenu")
 async def back_to_menu(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
-    await event.message.answer("<b>📱 Главное меню</b>", reply_markup=user_main_menu().as_markup())
-
+    await state.clear()
+    await safe_answer(event)
+    await safe_edit_text(
+        event,
+        text=MAIN_MENU,
+        reply_markup=user_main_menu()
+    )
 
 # --------------------
 # CHANGE DATA
@@ -60,11 +100,12 @@ class ChangeData(StatesGroup):
 
 @user_main.callback_query(F.data == "UserChangeData")
 async def change_data(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
-    await event.message.answer(
-        text="Выберите данные, которые хотите поменять",
-        reply_markup=await generate_keyboard2(
-            list_of_text=["Имя", "Почта", "Номер телефона"],
+    await clear_and_edit(
+        event=event,
+        state=state,
+        text=f"{DATA_CHANGE}\n• Выберите параметр, который хотите поменять",
+        reply_markup=generate_keyboard2(
+            list_of_text=["🪪 Имя и фамилия", "✉️ Почта", "📞 Номер телефона"],
             list_of_callback=["Change_name", "Change_email", "Change_phone"]
         )
     )
@@ -72,45 +113,35 @@ async def change_data(event: CallbackQuery, state: FSMContext):
 
 @user_main.callback_query(F.data.startswith("Change_"))
 async def select_data_to_change(event: CallbackQuery, state: FSMContext):
-    await clear_and_delete(event, state)
     call = event.data.split("_")[1]
-    txt = "ИЗМЕНЕНИЕ ДАННЫХ\n\n"
-    if call == "name":
-        await event.message.answer(
-            text=f"{txt}Отправьте ваше имя",
-            reply_markup=cancel_or_back_to("Отменить", "userAccount").as_markup()
-        )
-        await state.set_state(ChangeData.ch_username)
-    elif call == "email":
-        await event.message.answer(
-            text=f"{txt}Отправьте Вашу почту",
-            reply_markup=cancel_or_back_to("Отменить", "userAccount").as_markup()
-        )
-        await state.set_state(ChangeData.ch_email)
-    elif call == "phone":
-        await event.message.answer(
-            text=f"{txt}Отправьте Ваш номер телефона",
-            reply_markup=cancel_or_back_to("Отменить", "userAccount").as_markup()
-        )
-        await state.set_state(ChangeData.ch_phone)
+    option_map = {
+        "name": [f"{DATA_CHANGE}\n• Отправьте ваше имя и фамилию", ChangeData.ch_username],
+        "email": [f"{DATA_CHANGE}\n• Отправьте Вашу почту", ChangeData.ch_email],
+        "phone": [f"{DATA_CHANGE}\n• Отправьте Ваш номер телефона", ChangeData.ch_phone]
+    }
+    await clear_and_edit(
+        event, state,
+        text=option_map[call][0],
+        reply_markup=cancel_or_back_to("✖️ Отменить", "userAccount")
+    )
+    await state.set_state(option_map[call][1])
 
 
 @user_main.message(ChangeData.ch_username)
 async def change_name(event: Message, state: FSMContext):
     await state.clear()
-    updated = await service.update_user(
-        event.from_user.id, name=event.text
+    updated = await service.update_user(event.from_user.id, name=event.text)
+    if not updated:
+        await event.answer(
+            text=f"{DATA_CHANGE}\n• ❌ При обновлении данных что-то пошло не так",
+            reply_markup=user_account_menu()
+        )
+        return
+
+    await event.answer(
+        text=f"{DATA_CHANGE}\n• Имя успешно обновлено ✅\n\nТекущее имя: {event.text}",
+        reply_markup=user_account_menu()
     )
-    if updated:
-        await event.answer(
-            text=f"Имя успешно обновлено!\nТекущее имя: {event.text}",
-            reply_markup=user_account_menu().as_markup()
-        )
-    else:
-        await event.answer(
-            text="При обновлении данных что-то пошло не так",
-            reply_markup=user_account_menu().as_markup()
-        )
 
 
 @user_main.message(ChangeData.ch_email)
@@ -118,21 +149,20 @@ async def change_email(event: Message, state: FSMContext):
     if is_valid_email(event.text):
         await state.clear()
         updated = await service.update_user(event.from_user.id, email=event.text)
-        if updated:
+        if not updated:
             await event.answer(
-                text=f"Почта успешно обновлена!\nТекущая почта: {event.text}",
-                reply_markup=user_account_menu().as_markup()
+                text=f"{DATA_CHANGE}\n• ❌ При обновлении данных что-то пошло не так",
+                reply_markup=user_account_menu()
             )
-        else:
-            await event.answer(
-                text="При обновлении данных что-то пошло не так",
-                reply_markup=user_account_menu().as_markup()
-            )
-    else:
-        txt = "ИЗМЕНЕНИЕ ДАННЫХ\n\n"
+            return
         await event.answer(
-            text=f"{txt}Почта {event.text} некорректная. Попробуйте ещё раз\n\nОтправьте Вашу почту",
-            reply_markup=cancel_or_back_to("Отменить", "userAccount").as_markup()
+            text=f"{DATA_CHANGE}\n• Почта успешно обновлена ✅\n\nТекущая почта: {event.text}",
+            reply_markup=user_account_menu()
+        )
+    else:
+        await event.answer(
+            text=f"{DATA_CHANGE}\n\nПочта <b>{event.text}</b> некорректная. Попробуйте ещё раз\n\n• Отправьте Вашу почту",
+            reply_markup=cancel_or_back_to("✖️ Отменить", "userAccount")
         )
         await state.set_state(ChangeData.ch_email)
 
@@ -142,20 +172,20 @@ async def change_phone(event: Message, state: FSMContext):
     if is_valid_phone(event.text):
         await state.clear()
         updated = await service.update_user(event.from_user.id, phone=event.text)
-        if updated:
+        if not updated:
             await event.answer(
-                text=f"Номер телефона успешно обновлен!\nТекущий номер: {event.text}",
-                reply_markup=user_account_menu().as_markup()
+                text=f"{DATA_CHANGE}\n• ❌ При обновлении данных что-то пошло не так",
+                reply_markup=user_account_menu()
             )
-        else:
-            await event.answer(
-                text="При обновлении данных что-то пошло не так",
-                reply_markup=user_account_menu().as_markup()
-            )
-    else:
-        txt = "ИЗМЕНЕНИЕ ДАННЫХ\n\n"
+            return
         await event.answer(
-            text=f"{txt}Номер {event.text} некорректный. Попробуйте ещё раз\n\nОтправьте Ваш номер телефона",
-            reply_markup=cancel_or_back_to("Отменить", "userAccount").as_markup()
+            text=f"{DATA_CHANGE}\n• Номер телефона успешно обновлен ✅\n\nТекущий номер: {event.text}",
+            reply_markup=user_account_menu()
+        )
+
+    else:
+        await event.answer(
+            text=f"{DATA_CHANGE}\n\nНомер <b>{event.text}</b> некорректный. Попробуйте ещё раз\n\n• Отправьте Ваш номер телефона",
+            reply_markup=cancel_or_back_to("Отменить", "userAccount")
         )
         await state.set_state(ChangeData.ch_email)

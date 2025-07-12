@@ -9,7 +9,8 @@ def serialize_user(user: User | UserSurf) -> dict:
         "tg_id": user.user_tg_id,
         "name": user.user_name,
         "email": user.user_email,
-        "phone": user.user_phone
+        "phone": user.user_phone,
+        "notification": user.user_enable_notifications
     }
 
 def serialize_tour(tour: Tour, payment: TourPayment = None) -> dict:

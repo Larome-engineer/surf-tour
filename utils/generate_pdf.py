@@ -68,7 +68,7 @@ async def generate_invoice_pdf_lesson(
     )
 
     c.setFont("NotoSans", 20)
-    c.drawString(50, height - 50, "ИНФОРМАЦИЯ О ВАШЕМ ТУРЕ")
+    c.drawString(50, height - 50, "ИНФОРМАЦИЯ О БРОНИРОВАНИИ НА УРОК")
 
     c.setFont("NotoSans", 16)
     c.drawString(50, height - 70, f"Дата формирования: {date.today().strftime('%d.%m.%Y')}")
@@ -84,7 +84,7 @@ async def generate_invoice_pdf_lesson(
     c.drawString(50, base_y - 80, f"Сумма оплаты: {price:,.0f} ₽".replace(",", " "))
 
     c.setFont("NotoSans", 14)
-    c.drawString(50, base_y - 120, "Спасибо за покупку и приятного путешествия!")
+    c.drawString(50, base_y - 120, "Спасибо за покупку!")
 
     c.showPage()
     c.save()
