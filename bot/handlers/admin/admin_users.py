@@ -1,12 +1,12 @@
-from aiogram import F, Router
-from aiogram.fsm.context import FSMContext
+from aiogram import Router, F
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import CallbackQuery, Message
+from dependency_injector.wiring import Provide, inject
 
+from DIcontainer import Container
 from bot.filters.isAdmin import IsAdmin
-from bot.handlers.handler_utils import clear_and_edit, safe_answer, safe_edit_text
+from bot.handlers.handler_utils import *
 from bot.keyboards.admin import *
-from database import service
+from service.user_service import UserService
 
 admin_users = Router()
 
@@ -23,11 +23,16 @@ async def users(event: CallbackQuery, state: FSMContext):
 
 
 @admin_users.callback_query(F.data == "UsersList", IsAdmin())
-async def get_all_users(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_all_users(
+        event: CallbackQuery,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    user_list = await service.get_all_users()
+    user_list = await user_service.get_all_users()
     if not user_list:
         await safe_edit_text(
             event, f"{MENU}\n\n• В базе пока нет пользователей",
@@ -35,18 +40,9 @@ async def get_all_users(event: CallbackQuery, state: FSMContext):
         )
         return
 
-    result = [f"{LIST}\n"]
-    # for i, user in enumerate(user_list, start=1):
-    #     result.append(
-    #         f"<b>#{i}. {user['name'] if user['name'] is not None else "Нет имени"}</b>\n"
-    #         f"🔜<code>{user['tg_id']}</code>\n"
-    #         f"📝 {user['phone'] if user['phone'] is not None else "Нет номера"}\n"
-    #         f"👥 {user['email'] if user['email'] is not None else "Нет почты"}\n"
-    #     )
-
     await safe_edit_text(
         event,
-        text=f"{'\n'.join(result)}",
+        text=f"{LIST}\n",
         reply_markup=build_users_pagination_keyboard(
             users=user_list,
             page=0,
@@ -59,11 +55,16 @@ async def get_all_users(event: CallbackQuery, state: FSMContext):
         c.data.startswith("UsersList_page:") or
         c.data.startswith("InfoAboutUser_")
 ), IsAdmin())
-async def user_get_info(event: CallbackQuery, state: FSMContext):
+@inject
+async def user_get_info(
+        event: CallbackQuery,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     await state.clear()
     await safe_answer(event)
     if event.data.startswith("LessonsList_page:"):
-        users_list = await service.get_all_users()
+        users_list = await user_service.get_all_users()
         page = int(event.data.split(":")[1])
         await safe_edit_text(
             event,
@@ -75,13 +76,13 @@ async def user_get_info(event: CallbackQuery, state: FSMContext):
             )
         )
     else:
-        user = await service.get_user_by_tg_id(int(event.data.split("_")[1]))
+        user = await user_service.get_user_by_tg_id(int(event.data.split("_")[1]))
         if not user:
             await safe_edit_text(
                 event,
                 f"{MENU}\n\n• Пользователь c id:\n{event.text} не существует",
                 reply_markup=build_users_pagination_keyboard(
-                    users=await service.get_all_users(),
+                    users=await user_service.get_all_users(),
                     page=0,
                     back_callback="Users"
                 )
@@ -98,7 +99,7 @@ async def user_get_info(event: CallbackQuery, state: FSMContext):
             event,
             f"{MENU}\n\n• Пользователь:\n{user}",
             reply_markup=build_users_pagination_keyboard(
-                users=await service.get_all_users(),
+                users=await user_service.get_all_users(),
                 page=0,
                 back_callback="Users"
             )
@@ -126,11 +127,16 @@ async def user_by_telegram_id(event: CallbackQuery, state: FSMContext):
 
 
 @admin_users.message(SearchUser.telegram_id, IsAdmin())
-async def user_by_telegram_id(event: Message, state: FSMContext):
+@inject
+async def user_by_telegram_id(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    user = await service.get_user_by_tg_id(int(event.text))
+    user = await user_service.get_user_by_tg_id(int(event.text))
     if not user:
         await event.answer(
             f"{MENU}\n• Пользователь c id:\n{event.text} не существует",
@@ -157,9 +163,13 @@ async def user_by_email_of_phone(event: CallbackQuery, state: FSMContext):
 
 
 @admin_users.message(SearchUser.email_or_phone, IsAdmin())
-async def user_by_email_of_phone(event: Message, state: FSMContext):
+@inject
+async def user_by_email_of_phone(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]):
     await state.clear()
-    user = await service.get_user_by_phone_or_email(event.text)
+    user = await user_service.get_user_by_phone_or_email(event.text)
     if not user:
         await event.answer(text=f"{MENU}\n\n• Такого пользователя не существует", reply_markup=user_info())
         return

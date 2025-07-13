@@ -1,18 +1,20 @@
 from aiogram import Router, F
-from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, BufferedInputFile
+from aiogram.types import BufferedInputFile
 from aiogram_calendar import SimpleCalendarCallback
 from aiogram_calendar.simple_calendar import SimpleCalendar
+from dependency_injector.wiring import Provide, inject
 
 from bot.filters.isAdmin import IsAdmin
-from bot.handlers.handler_utils import edit_and_answer, get_and_clear, safe_edit_text, \
-    safe_answer, clear_and_edit, safe_delete
+from bot.handlers.handler_utils import *
 from bot.keyboards.admin import *
 from bot.notifications.user_notification import *
-from database import service
+from service.destination_service import DestService
+from service.export_service import ExportService
+from service.lesson_service import LessonService
+from service.user_service import UserService
 from utils.validators import is_valid_time
-
+from DIcontainer import Container
 admin_lessons = Router()
 
 ADD_LESSON = "<b>🏄 ДОБАВЛЕНИЕ УРОКА 🏄</b>"
@@ -38,19 +40,26 @@ class AddLesson(StatesGroup):
 
 
 @admin_lessons.callback_query(F.data == "AddLesson", IsAdmin())
-async def add_lesson_start(event: CallbackQuery, state: FSMContext):
+@inject
+async def add_lesson_start(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service],
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
-    directions = await service.get_all_destinations()
-    types = await service.get_lesson_types()
+    await safe_answer(event)
+    directions = await dest_service.get_all_destinations()
+    types = await lesson_service.get_lesson_types()
     if directions is None or types is None:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{ADD_LESSON}\n• Чтобы добавить урок/тур, должно быть хотя бы 1 направление",
             reply_markup=lesson_menu()
         )
 
     else:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{ADD_LESSON}\n• Выберите направление урока из доступных",
             reply_markup=simple_build_dynamic_keyboard(
@@ -64,20 +73,26 @@ async def add_lesson_start(event: CallbackQuery, state: FSMContext):
 
 
 @admin_lessons.callback_query(F.data.startswith("SelectDestWhenAddLesson_"), AddLesson.direction, IsAdmin())
-async def add_lesson_choice(event: CallbackQuery, state: FSMContext):
+@inject
+async def add_lesson_choice(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
+    await safe_answer(event)
     await state.update_data(dest=event.data.split("_")[1])
 
-    lesson_types = await service.get_lesson_types()
+    lesson_types = await lesson_service.get_lesson_types()
     if lesson_types is None:
         await state.clear()
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{ADD_LESSON}\n• Пока не существует ни одного типа урока",
             reply_markup=lesson_menu()
         )
         return
 
-    await edit_and_answer(
+    await safe_edit_text(
         event,
         text=f"{ADD_LESSON}Выберите тип урока",
         reply_markup=buttons_by_entity_list_values(
@@ -91,8 +106,9 @@ async def add_lesson_choice(event: CallbackQuery, state: FSMContext):
 
 @admin_lessons.callback_query(F.data.startswith("GetLessonType_"), AddLesson.lesson_type, IsAdmin())
 async def add_lesson_type(event: CallbackQuery, state: FSMContext):
+    await safe_answer(event)
     await state.update_data(type=event.data.split("_")[1])
-    await edit_and_answer(
+    await safe_edit_text(
         event,
         text=f"{ADD_LESSON}\n• Отправьте описание урока",
         reply_markup=back_to("Отмена создания урока", callback="BackToLessonMenu")
@@ -112,6 +128,13 @@ async def add_lesson_description(event: Message, state: FSMContext):
 
 @admin_lessons.message(AddLesson.places, IsAdmin())
 async def add_lesson_places(event: Message, state: FSMContext):
+    if int(event.text) <= 0:
+        await event.answer(
+            text=f"{ADD_LESSON}\nКОЛ-ВО МЕСТ ДОЛЖНО БЫТЬ > 0\n\n• Отправьте общее кол-во мест на урок",
+            reply_markup=back_to("Отмена создания урока", callback="BackToLessonMenu")
+        )
+        await state.set_state(AddLesson.places)
+        return
     await state.update_data(places=event.text)
     await event.answer(
         text=f"{ADD_LESSON}\n• Отправьте дату начала урока.\n-> Для отмены нажмите команду /start",
@@ -122,16 +145,26 @@ async def add_lesson_places(event: Message, state: FSMContext):
 
 @admin_lessons.callback_query(SimpleCalendarCallback.filter(), AddLesson.start, IsAdmin())
 async def add_lesson_date(event: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
+    await safe_answer(event)
     selected, date = await SimpleCalendar(locale="ru_RU").process_selection(event, callback_data)
     if selected:
+        if date < datetime.now():
+            await safe_edit_text(
+                event,
+                text=f"{ADD_LESSON}\nНЕПРАВИЛЬНАЯ ДАТА. ПОПРОБУЙТЕ ЕЩЕ РАЗ\n\n"
+                     f"• Отправьте дату начала урока.\n-> Для отмены нажмите команду /start",
+                reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+            )
+            await state.set_state(AddLesson.start)
+            return
         await state.update_data(start=date)
-
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{ADD_LESSON}\n• Отправьте время начала урока в формате: ЧЧ:MM\n<u>Пример: 10:00</u>",
             reply_markup=back_to("Отмена создания урока", callback="BackToLessonMenu")
         )
         await state.set_state(AddLesson.time)
+
 
 
 @admin_lessons.message(AddLesson.time, IsAdmin())
@@ -162,10 +195,16 @@ async def add_lesson_price(event: Message, state: FSMContext):
 
 
 @admin_lessons.message(AddLesson.price, IsAdmin())
-async def add_lesson_create(event: Message, state: FSMContext):
+@inject
+async def add_lesson_create(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service],
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     lesson_data = await get_and_clear(state)
 
-    lesson = await service.create_lesson(
+    lesson = await lesson_service.create_lesson(
         desc=lesson_data['desc'],
         duration=lesson_data['duration'],
         places=lesson_data['places'],
@@ -191,7 +230,7 @@ async def add_lesson_create(event: Message, state: FSMContext):
         lesson_data['time']
     )
 
-    all_users = await service.get_all_users()
+    all_users = await user_service.get_all_users()
     if not all_users:
         await event.answer(
             text=f"{ADD_LESSON}\n• Урок успешно добавлен!\n\n"
@@ -216,38 +255,27 @@ async def add_lesson_create(event: Message, state: FSMContext):
 # GET LESSON
 # --------------------
 @admin_lessons.callback_query(F.data == "BookedLessons", IsAdmin())
-async def get_all_booked_lessons(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_all_booked_lessons(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
-    booked = await service.get_all_booked_lessons_future()
+    booked = await lesson_service.get_all_booked_lessons_future()
     if not booked:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             f"{LESSON_LIST}\n❌ Нет предстоящих забронированных уроков.",
             reply_markup=lesson_menu()
         )
         return
 
-    result = [
-        f"{LESSON_LIST}\n• Список предстоящих забронированных уроков\n"
-    ]
-
-    # for i, lesson in enumerate(booked, start=1):
-    #     result.append(
-    #         f"<b>{i}.{lesson['type']}</b>\n"
-    #         f"📍 {lesson['dest']}\n"
-    #         f"📅 {perform_date(lesson['start_date'], lesson['time'])}\n"
-    #         f"💶 {lesson['price']}\n"
-    #         f"👥 Бронь:\n{len(lesson['users']) or '—'} человек"
-    #     )
-    #
-    # # Собираем весь текст
-    # full_text = "\n\n".join(result)
-
     # Отправляем частями
     await safe_edit_text(
         event,
-        text="\n\n".join(result),
+        text=f"{LESSON_LIST}\n• Список предстоящих забронированных уроков\n",
         reply_markup=build_lessons_pagination_keyboard(
             lessons=booked,
             page=0,
@@ -257,49 +285,49 @@ async def get_all_booked_lessons(event: CallbackQuery, state: FSMContext):
 
 
 @admin_lessons.callback_query(F.data == "AllLessonList", IsAdmin())
-async def get_all_lessons(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_all_lessons(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    lessons = await service.get_all_lessons()
+    lessons = await lesson_service.get_all_lessons()
     if not lessons:
-        await edit_and_answer(event, f"{LESSON_LIST}\n• Пока нет уроков", reply_markup=lesson_menu())
+        await safe_edit_text(
+            event=event,
+            text=f"{LESSON_LIST}\n• Пока нет уроков",
+            reply_markup=lesson_menu()
+        )
         return
-
-    page = 0
-    result = [
-        f"{LESSON_LIST}\nДля подробной информации нажми на нужный урок на клавиатуре\n"
-    ]
-    # for i, lesson in enumerate(lessons, start=1):
-    #     result.append(
-    #         f"<b>{i}.{lesson['type']}</b>\n"
-    #         f"🗺 {lesson['dest']}\n"
-    #         f"⌛ {lesson['duration']}\n"
-    #         f"📅 {perform_date(lesson['start_date'], lesson['time'])}\n"
-    #     )
 
     await safe_edit_text(
         event,
-        text=f"{'\n'.join(result)}",
+        text=f"{LESSON_LIST}\nДля подробной информации нажми на нужный урок на клавиатуре\n",
         reply_markup=build_lessons_pagination_keyboard(
             lessons=lessons,
-            page=page,
             back_callback="BackToLessonMenu"
         )
     )
 
 
-# @admin_lessons.callback_query(F.data.startswith("InfoAboutLesson_"), IsAdmin())
 @admin_lessons.callback_query(lambda c: (
         c.data.startswith("LessonsList_page:") or
         c.data.startswith("InfoAboutLesson_")
 ), IsAdmin())
-async def get_lesson_by_code(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_lesson_by_code(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
 
     data = event.data
-    lessons = await service.get_all_lessons()
+    lessons = await lesson_service.get_all_lessons()
 
     if data.startswith("LessonsList_page:"):
         page = int(data.split(":")[1])
@@ -313,7 +341,7 @@ async def get_lesson_by_code(event: CallbackQuery, state: FSMContext):
             )
         )
     elif data.startswith("InfoAboutLesson_"):
-        lesson = await service.get_lesson_by_code(data.split("_")[1])
+        lesson = await lesson_service.get_lesson_by_code(data.split("_")[1])
         if lesson:
             result = (
                 f"<b>{lesson['type'].upper()}</b>\n\n"
@@ -337,10 +365,15 @@ async def get_lesson_by_code(event: CallbackQuery, state: FSMContext):
 
 
 @admin_lessons.callback_query(F.data == "LessonByDirection", IsAdmin())
-async def get_lesson_by_destination_start(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_lesson_by_destination_start(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service],
+):
     await state.clear()
     await safe_answer(event)
-    directions = await service.get_all_destinations()
+    directions = await dest_service.get_all_destinations()
     if directions is not None:
         await safe_edit_text(
             event,
@@ -361,11 +394,16 @@ async def get_lesson_by_destination_start(event: CallbackQuery, state: FSMContex
 
 
 @admin_lessons.callback_query(F.data.startswith("AdminSearchLessonByDirection_"), IsAdmin())
-async def get_lesson_by_destination_choice(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_lesson_by_destination_choice(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
     call = event.data.partition("_")[2]
-    lessons = await service.get_all_lessons_by_dest(call)
+    lessons = await lesson_service.get_all_lessons_by_dest(call)
 
     if not lessons:
         await safe_edit_text(
@@ -375,21 +413,9 @@ async def get_lesson_by_destination_choice(event: CallbackQuery, state: FSMConte
         )
         return
 
-    lines = [
-        f"{LESSON_LIST}\n• Список предстоящих уроков по направлению {call}"
-    ]
-    # for i, lesson in enumerate(lessons, start=1):
-    #     lines.append(
-    #         f"<b>{i}.{lesson['type']}</b>\n"
-    #         f"🗺 {lesson['dest']}\n"
-    #         f"📅 {perform_date(lesson['start_date'], lesson['time'])}\n"
-    #     )
-    #
-    # text = f"\n\n".join(lines)
-
     await safe_edit_text(
         event,
-        text=f"\n\n".join(lines),
+        text=f"{LESSON_LIST}\n• Список предстоящих уроков по направлению {call}",
         reply_markup=build_lessons_pagination_keyboard(
             lessons=lessons,
             page=0,
@@ -407,21 +433,28 @@ class AddLessonPlaces(StatesGroup):
 
 @admin_lessons.callback_query(F.data.startswith("AddLessonPlaces_"), IsAdmin())
 async def add_lesson_places_start(event: CallbackQuery, state: FSMContext):
+    await safe_answer(event)
     await state.update_data(code=event.data.split("_")[1])
-    await edit_and_answer(
+    await safe_edit_text(
         event,
         text=f"{ADD_PLACES}\n• Введите кол-во добавляемых мест",
-        reply_markup=back_to("Отмена", "LessonsList")
+        reply_markup=back_to("Отмена", "AllLessonList")
     )
     await state.set_state(AddLessonPlaces.places)
 
 
 @admin_lessons.message(AddLessonPlaces.places, IsAdmin())
-async def add_lesson_places_places(event: Message, state: FSMContext):
+@inject
+async def add_lesson_places_places(
+        event: Message,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service],
+        user_service: UserService = Provide[Container.user_service]
+):
     state_data = await get_and_clear(state)
     await safe_answer(event)
 
-    add_places = await service.add_places_on_lesson(state_data['code'], int(event.text))
+    add_places = await lesson_service.add_places_on_lesson(state_data['code'], int(event.text))
     if not add_places:
         await event.answer(
             text=f"{ADD_PLACES}\n• При добавлении мест что-то пошло не так",
@@ -429,7 +462,8 @@ async def add_lesson_places_places(event: Message, state: FSMContext):
         )
         return
 
-    users_list = await service.get_all_users()
+    users_list = await user_service.get_all_users()
+    lesson: dict = await lesson_service.get_lesson_by_code(state_data['code'])
     if not users_list:
         await event.answer(
             text=f"{ADD_PLACES}\n• Места на урок успешно добавлены\n"
@@ -438,7 +472,7 @@ async def add_lesson_places_places(event: Message, state: FSMContext):
         return
 
     send, not_send = await notify_places_lesson(
-        lesson_code=state_data['code'],
+        lesson=lesson,
         users_list=users_list,
         places=int(event.text)
     )
@@ -458,12 +492,17 @@ class DeleteLesson(StatesGroup):
 
 
 @admin_lessons.callback_query(F.data.startswith("DeleteLesson_"), IsAdmin())
-async def delete_lesson(event: CallbackQuery, state: FSMContext):
+@inject
+async def delete_lesson(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service],
+):
     await state.clear()
     await safe_answer(event)
 
     unicode = event.data.split("_")[1]
-    lesson = await service.get_future_paid_lesson(unicode)
+    lesson = await lesson_service.get_future_paid_lesson(unicode)
 
     if not lesson:
         await state.update_data(unicode=unicode)
@@ -471,8 +510,8 @@ async def delete_lesson(event: CallbackQuery, state: FSMContext):
             event,
             text=f"{REMOVE}\n• Желайте сделать экспорт базы данных перед удалением?",
             reply_markup=any_button_kb(
-                text=["Да", "Нет"],
-                callback=["ToRemoveLesson_yes", "ToRemoveLesson_no"]
+                text=["Да", "Нет", "Отмена"],
+                callback=["ToRemoveLesson_yes", "ToRemoveLesson_no", "BackToAdminMenu"]
             )
         )
         return
@@ -501,12 +540,17 @@ async def delete_lesson(event: CallbackQuery, state: FSMContext):
 
 
 @admin_lessons.callback_query(F.data.startswith("ToRemoveLesson_"), IsAdmin())
-async def yes_to_remove_lesson(event: CallbackQuery, state: FSMContext):
+@inject
+async def yes_to_remove_lesson(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await safe_answer(event)
     data = await get_and_clear(state)
     answer = event.data.split("_")[1]
     if answer == "yes":
-        export = await service.export_db()
+        export = await ExportService.export_db()
         if not export:
             await safe_edit_text(
                 event,
@@ -522,7 +566,7 @@ async def yes_to_remove_lesson(event: CallbackQuery, state: FSMContext):
             caption="📦 Бэкап данных."
         )
 
-    deleted = await service.delete_lesson(data['unicode'])
+    deleted = await lesson_service.delete_lesson(data['unicode'])
     if not deleted:
         if answer == 'yes':
             await event.message.answer(
@@ -566,9 +610,14 @@ async def add_lesson_type(event: CallbackQuery, state: FSMContext):
 
 
 @admin_lessons.message(AddLessonType.type)
-async def add_lesson_type(event: Message, state: FSMContext):
+@inject
+async def add_lesson_type(
+        event: Message,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service],
+):
     await state.clear()
-    type_created = await service.add_lesson_type(event.text)
+    type_created = await lesson_service.add_lesson_type(event.text)
     if type_created:
         await event.answer(text=f"{ADD_TYPE}\n• Тип добавлен", reply_markup=lesson_menu())
     else:

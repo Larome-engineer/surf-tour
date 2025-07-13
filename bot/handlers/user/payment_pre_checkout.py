@@ -1,22 +1,33 @@
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import PreCheckoutQuery, SuccessfulPayment, BufferedInputFile
+from dependency_injector.wiring import Provide, inject
 
 from bot.config import NOTIFICATION_CHAT
 from bot.create import payment_payload, surf_bot
+from DIcontainer import Container
 from bot.handlers.handler_utils import safe_send_document, safe_send
 from bot.keyboards.user import user_main_menu
-from database import service
+from service.lesson_service import LessonService
+from service.payment_service import PaymentService
+from service.tour_service import TourService
+from service.user_service import UserService
 from utils.generate_pdf import generate_invoice_pdf_lesson, generate_invoice_pdf_tour
 
 payment = Router()
 
 
 @payment.pre_checkout_query()
-async def process_pre_checkout(event: PreCheckoutQuery, state: FSMContext):
+@inject
+async def process_pre_checkout(
+        event: PreCheckoutQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service],
+        tour_service: TourService = Provide[Container.tour_service]
+):
     payload = event.invoice_payload
     if payload == "event: ApplyUserLessonBooking":
-        lesson = await service.get_lesson_by_code(
+        lesson = await lesson_service.get_lesson_by_code(
             payment_payload[event.from_user.id]['lesson']['unicode']
         )
         if not lesson or int(lesson['places']) <= 0:
@@ -35,7 +46,7 @@ async def process_pre_checkout(event: PreCheckoutQuery, state: FSMContext):
         await event.answer(ok=True)
 
     elif payload == "event: ApplyUserTourBooking":
-        tour = await service.get_tour_by_name(
+        tour = await tour_service.get_tour_by_name(
             payment_payload[event.from_user.id]['tour']['tour_name']
         )
 
@@ -56,7 +67,14 @@ async def process_pre_checkout(event: PreCheckoutQuery, state: FSMContext):
 
 
 @payment.message(F.successful_payment)
-async def successful_payment(event: SuccessfulPayment):
+@inject
+async def successful_payment(
+        event: SuccessfulPayment,
+        user_service: UserService = Provide[Container.user_service],
+        payment_service: PaymentService = Provide[Container.payment_service],
+        lesson_service: LessonService = Provide[Container.lesson_service],
+        tour_service: TourService = Provide[Container.tour_service]
+):
     payment_info: SuccessfulPayment = event.successful_payment
     payload_data: str = payment_info.invoice_payload
     if payload_data == "event: ApplyUserLessonBooking":
@@ -66,13 +84,13 @@ async def successful_payment(event: SuccessfulPayment):
         price: int = int(payment_payload[event.from_user.id]['lesson']['price'])
         payment_payload.pop(event.from_user.id)
 
-        user_entity = await service.get_user_by_tg_id(event.from_user.id)
-        paid = await service.create_surf_payment(
+        user_entity = await user_service.get_user_by_tg_id(event.from_user.id)
+        paid = await payment_service.create_surf_payment(
             tg_id=event.from_user.id, price=price, code=unicode
         )
 
         if paid:
-            await service.reduce_places_on_lesson(code=unicode, count=places)
+            await lesson_service.reduce_places_on_lesson(code=unicode, count=places)
             result = [
                 f"<b> 🎫 БРОНИРОВАНИЕ ПОДТВЕРЖДЕНО 🎫</b>\n\n"
                 f"🏄 <b>{lesson['type']}</b>\n"
@@ -121,13 +139,13 @@ async def successful_payment(event: SuccessfulPayment):
         price: int = int(payment_payload[event.from_user.id]['tour']['price'])
         payment_payload.pop(event.from_user.id)
 
-        user_entity = await service.get_user_by_tg_id(event.from_user.id)
-        paid = await service.create_tour_payment(
+        user_entity = await user_service.get_user_by_tg_id(event.from_user.id)
+        paid = await payment_service.create_tour_payment(
             tg_id=event.from_user.id, price=price, tour_name=tour_name
         )
 
         if paid:
-            await service.reduce_places_on_tour(tour_name=tour_name, count=places)
+            await tour_service.reduce_places_on_tour(tour_name=tour_name, count=places)
             result = [
                 f"<b> 🎫 БРОНИРОВАНИЕ ПОДТВЕРЖДЕНО 🎫</b>\n\n"
                 f"🏕 {tour_name}\n"

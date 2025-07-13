@@ -1,16 +1,17 @@
-from aiogram import F, Router
+from aiogram import Router, F
+from bot.keyboards.admin import *
+from bot.handlers.handler_utils import *
+from bot.filters.isAdmin import IsAdmin
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import CallbackQuery, Message, BufferedInputFile
+from dependency_injector.wiring import Provide, inject
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
+from DIcontainer import Container
 
-from bot.create import surf_bot
-from bot.filters.isAdmin import IsAdmin
-from bot.handlers.handler_utils import edit_and_answer, clear_and_edit, safe_answer, safe_edit_text, get_and_clear, \
-    safe_delete
-from bot.keyboards.admin import *
-from bot.notifications.user_notification import mailing_action
-from database import service
+from service.export_service import ExportService
+from service.user_service import UserService
 from utils.set_commands import set_admin_commands
+from bot.notifications.user_notification import mailing_action
 
 admin_main = Router()
 
@@ -39,13 +40,14 @@ async def back_to_menu(event: CallbackQuery, state: FSMContext):
         reply_markup=tours_lessons_directions()
     )
 
+
 @admin_main.callback_query(F.data == "DatabaseExport")
 async def export_db(event: CallbackQuery, state: FSMContext):
     await state.clear()
     await safe_answer(event)
     await safe_delete(event)
 
-    export = await service.export_db()
+    export = await ExportService.export_db()
     if not export:
         await safe_edit_text(
             event,
@@ -59,6 +61,7 @@ async def export_db(event: CallbackQuery, state: FSMContext):
         caption="📦 Бэкап данных."
     )
     await event.message.answer("<b>💻 ГЛАВНОЕ МЕНЮ 💻</b>", reply_markup=main_menu())
+
 
 @admin_main.callback_query(F.data == "BackToUsersMenu", IsAdmin())
 async def back_to_menu(event: CallbackQuery, state: FSMContext):
@@ -122,11 +125,16 @@ headerMailing = "<b>📩 РАССЫЛКА 📩</b>"
 
 
 @admin_main.callback_query(F.data == "UserMailing", IsAdmin())
-async def mailing(event: CallbackQuery, state: FSMContext):
+@inject
+async def mailing(
+        event: CallbackQuery,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    users = await service.get_all_users()
+    users = await user_service.get_all_users()
     if not users:
         await safe_edit_text(
             event,
@@ -160,14 +168,19 @@ async def decline_mailing(event: CallbackQuery, state: FSMContext):
 
 
 @admin_main.callback_query(F.data == 'send_mailing')
-async def mailing_handler(event: CallbackQuery, state: FSMContext):
+@inject
+async def mailing_handler(
+        event: CallbackQuery,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     data = await get_and_clear(state)
     await safe_answer(event)
 
     mailing_message = data['msg']
-    user_ids = await service.get_all_users_ids()
+    user_ids = await user_service.get_all_users_ids()
     if not user_ids:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{headerMailing}\n• У Вас нет пользователей для рассылки сообщения",
             reply_markup=user_menu()

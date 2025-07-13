@@ -1,23 +1,23 @@
 from aiogram import Router, F
 from aiogram.filters import StateFilter
-from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, LabeledPrice
+from aiogram.types import LabeledPrice
+from dependency_injector.wiring import Provide, inject
 
 from bot.config import PROVIDER_TOKEN
 from bot.create import payment_payload
-from bot.handlers.handler_utils import send_by_instance, safe_answer, safe_delete, edit_and_answer, safe_edit_text, \
-    get_and_clear
+from DIcontainer import Container
+from bot.handlers.handler_utils import *
 from bot.keyboards.user import *
-from database import service
+from service.lesson_service import LessonService
+from service.user_service import UserService
 from utils.validators import is_valid_email, is_valid_phone
 
 user_lesson = Router()
 
+"""LESSON BOOKING"""
 
-# --------------------
-# BOOKING
-# --------------------
+
 class UserBookLesson(StatesGroup):
     lesson = State()
     username = State()
@@ -28,25 +28,32 @@ class UserBookLesson(StatesGroup):
 
 
 @user_lesson.callback_query(F.data.startswith("StartBookingLesson_"))
-async def book_lesson(event: CallbackQuery, state: FSMContext):
+@inject
+async def book_lesson(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service],
+        user_service: UserService = Provide[Container.user_service]
+):
     await state.clear()
+    await safe_answer(event)
     lesson_code = event.data.split("_")[1]
 
-    lsn = await service.get_lesson_by_code(lesson_code)
+    lsn = await lesson_service.get_lesson_by_code(lesson_code)
     if lsn is None:
-        await edit_and_answer(event, "❌ <b>Такого урока не существует</b>", user_main_menu())
+        await safe_edit_text(event, "❌ <b>Такого урока не существует</b>", user_main_menu())
         return
     if lsn['places'] <= 0:
-        await edit_and_answer(event, "<b>⛔️ Места на урок закончились ⛔️</b>", user_main_menu())
+        await safe_edit_text(event, "<b>⛔️ Места на урок закончились ⛔️</b>", user_main_menu())
         return
 
-    lesson = await service.get_user_lesson_details(event.from_user.id, lesson_code)
+    lesson = await lesson_service.get_user_lesson_details(event.from_user.id, lesson_code)
     lesson_naming = (
         f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
         f"Наименование урока:\n{lsn['type']} | {lsn['start_date']} | {lsn['type']}"
     )
     if lesson is not None:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{lesson_naming}\n\n❗️ <b>Урок уже находится в списке предстоящих уроков</b>",
             reply_markup=user_main_menu()
@@ -54,9 +61,9 @@ async def book_lesson(event: CallbackQuery, state: FSMContext):
         return
 
     await state.update_data(lesson=lsn, lsn_naming=lesson_naming)
-    user_info = await service.get_user_by_tg_id(event.from_user.id)
+    user_info = await user_service.get_user_by_tg_id(event.from_user.id)
     if user_info['name'] is None or user_info['phone'] is None or user_info['email'] is None:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text=f"{lesson_naming}\n\n🙋🏻 Отправьте Ваше имя и фамилию",
             reply_markup=cancel_or_back_to(text="✖️ Отменить бронирование", callback="BackToUserMainMenu")
@@ -98,7 +105,14 @@ async def book_lesson(event: Message, state: FSMContext):
 
 
 @user_lesson.message(StateFilter(UserBookLesson.phone, UserBookLesson.exists))
-async def book_lesson_applying(event: Message | CallbackQuery, state: FSMContext):
+@inject
+async def book_lesson_applying(
+        event: Message | CallbackQuery,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service],
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
+    await safe_answer(event)
     data = await state.get_data()
     if isinstance(event, Message):
         phone = event.text
@@ -107,7 +121,7 @@ async def book_lesson_applying(event: Message | CallbackQuery, state: FSMContext
             if is_valid_phone(event.text):
                 await state.update_data(phone=phone)
                 if 'email' in data.keys() or 'phone' in data.keys() or 'name' in data.keys():
-                    updated = await service.update_user(event.from_user.id, data['name'], data['email'], phone)
+                    updated = await user_service.update_user(event.from_user.id, data['name'], data['email'], phone)
                     if not updated:
                         await state.clear()
                         await event.answer(
@@ -128,13 +142,13 @@ async def book_lesson_applying(event: Message | CallbackQuery, state: FSMContext
                 return
 
     book_places = 1
-    lesson_info = await service.get_lesson_by_code(data['lesson']['unicode'])
+    lesson_info = await lesson_service.get_lesson_by_code(data['lesson']['unicode'])
 
     price = lesson_info['price'] * book_places
     await state.update_data(price=price)
     await state.update_data(places=book_places)
     await state.update_data(desc=lesson_info['desc'])
-    user_entity = await service.get_user_by_tg_id(event.from_user.id)
+    user_entity = await user_service.get_user_by_tg_id(event.from_user.id)
 
     text = (
         f"🎫 <b>ПОДТВЕРДЖЕНИЕ БРОНИРОВАНИЯ</b> 🎫\n\n"
@@ -158,8 +172,8 @@ async def book_lesson_applying(event: Message | CallbackQuery, state: FSMContext
 
 @user_lesson.callback_query(F.data == "ApplyUserLessonBooking", UserBookLesson.apply)
 async def book_lesson_send_invoice(event: CallbackQuery, state: FSMContext):
+    await safe_answer(event)
     state_data = await get_and_clear(state)
-
     price: int = state_data['price']
     payment_payload[event.from_user.id] = {
         "lesson": {
@@ -188,14 +202,19 @@ async def book_lesson_send_invoice(event: CallbackQuery, state: FSMContext):
     )
 
 
-# --------------------
-# GETTER | UPCOMING
-# --------------------
+"""LESSON UPCOMING"""
+
+
 @user_lesson.callback_query(F.data == "UpcomingUserLessons")
-async def upcoming_lessons_list(event: CallbackQuery, state: FSMContext):
+@inject
+async def upcoming_lessons_list(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
-    lessons = await service.get_upcoming_user_lessons(event.from_user.id)
+    lessons = await lesson_service.get_upcoming_user_lessons(event.from_user.id)
 
     if not lessons:
         await safe_edit_text(
@@ -205,18 +224,9 @@ async def upcoming_lessons_list(event: CallbackQuery, state: FSMContext):
         )
         return
 
-    result = [f"<b>🏄🔜 ВАШИ ПРЕДСТОЯЩИЕ УРОКИ</b>\n\n"]
-    # for i, lesson in enumerate(lessons, start=1):
-    #     result.append(
-    #         f"🏕 {lesson['type']}\n"
-    #         f"🗺 {lesson['dest']}\n"
-    #         f"🗺 Продолжительность: {lesson['duration']}\n"
-    #         f"📅 {lesson['start_date']} | {lesson['time']}\n"
-    #     )
-
     await safe_edit_text(
         event=event,
-        text=f"{'\n'.join(result)}",
+        text=f"<b>🏄🔜 ВАШИ ПРЕДСТОЯЩИЕ УРОКИ</b>\n\n",
         reply_markup=build_upcoming_lessons_pagination_keyboard(
             lessons=lessons,
             callback="UpcomingUserLessons_",
@@ -230,12 +240,17 @@ async def upcoming_lessons_list(event: CallbackQuery, state: FSMContext):
         c.data.startswith("UpcomingUserList_page:") or
         c.data.startswith("UpcomingUserLessons_")
 ))
-async def upcoming_lesson_details(event: CallbackQuery, state: FSMContext):
+@inject
+async def upcoming_lesson_details(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
 
     if event.data.startswith("UpcomingUserList_page:"):
-        lessons = await service.get_upcoming_user_lessons(event.from_user.id)
+        lessons = await lesson_service.get_upcoming_user_lessons(event.from_user.id)
         page = int(event.data.split(":")[1])
         await safe_edit_text(
             event,
@@ -248,7 +263,7 @@ async def upcoming_lesson_details(event: CallbackQuery, state: FSMContext):
         )
         return
 
-    details = await service.get_user_lesson_details(event.from_user.id, event.data.split("_")[1])
+    details = await lesson_service.get_user_lesson_details(event.from_user.id, event.data.split("_")[1])
     text = (
         f"<b>🏄 {details['type']}</b>\n\n"
         f"🗺 {details['dest']}\n"
@@ -269,37 +284,28 @@ async def upcoming_lesson_details(event: CallbackQuery, state: FSMContext):
     )
 
 
-# --------------------
-# GETTER | ALL WITH FREE PLACES
-# --------------------
+"""LESSON ALL"""
+
 
 @user_lesson.callback_query(F.data == "AllLessonsWithFreePlaces")
-async def lesson_list(event: CallbackQuery, state: FSMContext):
+@inject
+async def lesson_list(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    lessons = await service.get_all_lessons_with_places()
+    lessons = await lesson_service.get_all_lessons_with_places()
     if lessons is None:
-        await edit_and_answer(event, f"<b>✖️🏄 Пока нет уроков</b>", reply_markup=user_main_menu())
+        await safe_edit_text(event, f"<b>✖️🏄 Пока нет уроков</b>", reply_markup=user_main_menu())
         return
-
-    result = [
-        "🏄 <b>СПИСОК ДОСТУПНЫХ УРОКОВ</b> 🏄\n"
-        "• Для подробной информации нажми на нужный урок на клавиатуре\n\n"
-    ]
-
-    # for i, lesson in enumerate(lessons, start=1):
-    #     result.append(
-    #         f"<b>#{i}. <code>{lesson['type'].upper()}</code></b>\n"
-    #         f"🗺 {lesson['dest']}\n"
-    #         f"👥 Свободные места: {lesson['places']}\n"
-    #         f"👥 Продолжительность: {lesson['duration']}\n"
-    #         f"📅 Даты: {lesson['start_date']} | Начало: {lesson['time']}\n"
-    #     )
 
     await safe_edit_text(
         event,
-        text=f"{'\n'.join(result)}",
+        text="🏄 <b>СПИСОК ДОСТУПНЫХ УРОКОВ</b> 🏄\n"
+             "• Для подробной информации нажми на нужный урок на клавиатуре\n\n",
         reply_markup=build_lessons_pagination_keyboard(
             lessons=lessons,
             callback="UserMoreAboutLesson_",
@@ -308,19 +314,24 @@ async def lesson_list(event: CallbackQuery, state: FSMContext):
     )
 
 
-# --------------------
-# GETTER | ALL WITH FREE PLACES (MORE ABOUT)
-# --------------------
+"""LESSON ALL | MORE ABOUT"""
+
+
 @user_lesson.callback_query(lambda c: (
         c.data.startswith("AllToursUserList_page:") or
         c.data.startswith("UserMoreAboutLesson_")
 ))
-async def lesson_information(event: CallbackQuery, state: FSMContext):
+@inject
+async def lesson_information(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
     await state.clear()
     await safe_answer(event)
 
     if event.data.startswith("AllToursUserList_page:"):
-        lessons = await service.get_all_lessons_with_places()
+        lessons = await lesson_service.get_all_lessons_with_places()
         page = int(event.data.split(":")[1])
         await safe_edit_text(
             event,
@@ -334,7 +345,7 @@ async def lesson_information(event: CallbackQuery, state: FSMContext):
         return
 
     call = event.data.split('_')[1]
-    lesson = await service.get_lesson_by_code(call)
+    lesson = await lesson_service.get_lesson_by_code(call)
     if lesson is None:
         await event.message.answer(f"<b>✖️🏕 Пока нет уроков</b>", reply_markup=user_main_menu())
         return

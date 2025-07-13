@@ -1,13 +1,15 @@
 from aiogram import Router, F
-from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery, BufferedInputFile
+from aiogram.types import BufferedInputFile
+from dependency_injector.wiring import Provide, inject
 
+from DIcontainer import Container
 from bot.filters.isAdmin import IsAdmin
-from bot.handlers.handler_utils import clear_and_edit, safe_answer, safe_edit_text, get_and_clear, safe_delete
+from bot.handlers.handler_utils import *
 from bot.keyboards.admin import *
-from bot.keyboards.admin import yes_or_not
-from database import service
+from service.booking_service import BookingService
+from service.destination_service import DestService
+from service.export_service import ExportService
 
 admin_direct = Router()
 
@@ -35,8 +37,13 @@ async def add_direction_start(event: CallbackQuery, state: FSMContext):
 
 
 @admin_direct.message(AddDirection.direction, IsAdmin())
-async def add_direction(event: Message, state: FSMContext):
-    direction = await service.create_destination(event.text)
+@inject
+async def add_direction(
+        event: Message,
+        state: FSMContext,
+        dest_service=Provide[Container.destination_service]
+):
+    direction = await dest_service.create_destination(event.text)
     if direction:
         await event.answer(
             text=f"{ADD}\n• Направление успешно создано!",
@@ -59,10 +66,15 @@ class DeleteDirection(StatesGroup):
 
 
 @admin_direct.callback_query(F.data == "DeleteDirection", IsAdmin())
-async def delete_direction_start(event: CallbackQuery, state: FSMContext):
+@inject
+async def delete_direction_start(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service]
+):
     await state.clear()
     await safe_answer(event)
-    directions = await service.get_all_destinations()
+    directions = await dest_service.get_all_destinations()
     if directions:
         await state.update_data(directions=directions)
         await safe_edit_text(
@@ -112,13 +124,18 @@ async def delete_direction_apply(event: CallbackQuery, state: FSMContext):
 
 
 @admin_direct.callback_query(F.data.startswith("DirectionDelete_"), DeleteDirection.dir_name, IsAdmin())
-async def delete_direction_choice(event: CallbackQuery, state: FSMContext):
+@inject
+async def delete_direction_choice(
+        event: CallbackQuery,
+        state: FSMContext,
+        booking_service: BookingService = Provide[Container.booking_service]
+):
     await safe_answer(event)
 
     direction = event.data.split("_")[1]
     await state.update_data(direction=direction)
 
-    has_booked = await service.has_future_bookings_for_destination(direction)
+    has_booked = await booking_service.has_future_bookings_for_destination(direction)
 
     if has_booked is None or not direction:
         await safe_edit_text(
@@ -149,13 +166,18 @@ async def delete_direction_choice(event: CallbackQuery, state: FSMContext):
 
 
 @admin_direct.callback_query(F.data.startswith("ExportDataWhenRemove_"), IsAdmin())
-async def export_db(event: CallbackQuery, state: FSMContext):
+@inject
+async def export_db(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service]
+):
     data = await get_and_clear(state)
     await safe_answer(event)
 
     answer = event.data.split("_")[1]
     if answer == "yes":
-        export = await service.export_db()
+        export = await ExportService.export_db()
         if not export:
             await safe_edit_text(
                 event,
@@ -170,7 +192,7 @@ async def export_db(event: CallbackQuery, state: FSMContext):
             caption="📦 Бэкап данных."
         )
 
-    deleted = await service.delete_destination_by_name(data['direction'])
+    deleted = await dest_service.delete_destination_by_name(data['direction'])
     if not deleted:
         if answer == 'yes':
             await event.message.answer(
@@ -204,10 +226,15 @@ async def export_db(event: CallbackQuery, state: FSMContext):
 # GET DIRECTION
 # --------------------
 @admin_direct.callback_query(F.data == "DirectionsList", IsAdmin())
-async def directions_list(event: CallbackQuery, state: FSMContext):
+@inject
+async def directions_list(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service]
+):
     await state.clear()
     await safe_answer(event)
-    directions = await service.get_all_destinations()
+    directions = await dest_service.get_all_destinations()
 
     if directions:
         lines = [f"{LIST}"]

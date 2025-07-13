@@ -5,6 +5,8 @@ from tortoise import Tortoise
 
 from config import BOT_TOKEN, DB_URL
 
+from DIcontainer import Container
+
 # Сохранение payload перед покупкой
 # {user_id: {info1: ..., info2: ..., ...}}
 payment_payload = {}
@@ -28,3 +30,5 @@ async def init_db():
             modules={"models": ["database.models"]}
         )
         await Tortoise.generate_schemas()
+
+container = Container()

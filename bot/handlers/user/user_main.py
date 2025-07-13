@@ -1,39 +1,44 @@
-from typing import Awaitable
-
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery
+from dependency_injector.wiring import Provide, inject
 
 from bot.config import NOTIFICATION_CHAT
-from bot.create import surf_bot, payment_payload
-from bot.handlers.handler_utils import clear_and_edit, edit_and_answer, safe_answer, safe_edit_text, safe_send
+from bot.create import payment_payload
+from DIcontainer import Container
+from bot.handlers.handler_utils import *
 from bot.keyboards.user import *
-from database import service
+from service.user_service import UserService
 from utils.set_commands import set_user_commands
 from utils.validators import is_valid_email, is_valid_phone
 
 user_main = Router()
 
+logger_user = logging.getLogger(__name__)
+
 HELLO_MSG = "<b>🏠 ГЛАВНОЕ МЕНЮ</b>"
 DATA_CHANGE = "<b>♻️ ИЗМЕНЕНИЕ ДАННЫХ</b>"
 MAIN_MENU = "<b>🏠 ГЛАВНОЕ МЕНЮ</b>"
 
+''' USER START COMMAND '''
 
-# --------------------
-# START
-# --------------------
+
 @user_main.message(CommandStart())
-async def start(event: Message, state: FSMContext):
+@inject
+async def start(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
+    await state.clear()
     try:
         payment_payload.pop(event.from_user.id)
-    except Exception:
+    except Exception as e:
+        logger_user.error(e)
         pass
-    await state.clear()
-    user_info = await service.get_user_by_tg_id(event.from_user.id)
+    user_info = await user_service.get_user_by_tg_id(event.from_user.id)
     if user_info is None:
-        await service.create_user(tg_id=event.from_user.id)
+        await user_service.create_user(tg_id=event.from_user.id)
         await safe_send(
             text=f"Новый пользователь зашел в бота! 🙋🏻✅\n🆔 {event.from_user.id}",
             chat_id=NOTIFICATION_CHAT
@@ -43,25 +48,35 @@ async def start(event: Message, state: FSMContext):
 
 
 @user_main.callback_query(F.data == "DisableNotifications")
-async def disable_notifications(event: CallbackQuery):
-    disabled = await service.disable_notifications(event.from_user.id)
+@inject
+async def disable_notifications(
+        event: CallbackQuery,
+        user_service: UserService = Provide[Container.user_service]
+):
+    await safe_answer(event)
+    disabled = await user_service.disable_notifications(event.from_user.id)
     if disabled:
-        await edit_and_answer(event, text="✖️📨 <b>Уведомления отключены!</b>")
+        await safe_edit_text(event, text="✖️📨 <b>Уведомления отключены!</b>")
     else:
-        await edit_and_answer(
+        await safe_edit_text(
             event,
             text="✖️ При отключении уведомлений что-то пошло не так...\n\nПопробуйте в другой раз"
         )
 
 
-# --------------------
-# USER ACCOUNT
-# --------------------
+''' USER ACCOUNT MENU '''
+
+
 @user_main.callback_query(F.data == "UserAccount")
-async def user_account(event: CallbackQuery, state: FSMContext):
+@inject
+async def user_account(
+        event: CallbackQuery,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     await safe_answer(event)
     await state.clear()
-    user_info = await service.get_user_by_tg_id(event.from_user.id)
+    user_info = await user_service.get_user_by_tg_id(event.from_user.id)
     if user_info is not None:
         result = [
             f"<b>🆔 {user_info['tg_id']}</b>\n\n"
@@ -76,9 +91,9 @@ async def user_account(event: CallbackQuery, state: FSMContext):
         )
 
 
-# --------------------
-# MAIN MENU
-# --------------------
+''' BACK TO MAIN MENU'''
+
+
 @user_main.callback_query(F.data == "BackToUserMainMenu")
 async def back_to_menu(event: CallbackQuery, state: FSMContext):
     await state.clear()
@@ -89,9 +104,10 @@ async def back_to_menu(event: CallbackQuery, state: FSMContext):
         reply_markup=user_main_menu()
     )
 
-# --------------------
-# CHANGE DATA
-# --------------------
+
+'''CHANGE USER DATA'''
+
+
 class ChangeData(StatesGroup):
     ch_username = State()
     ch_email = State()
@@ -128,9 +144,14 @@ async def select_data_to_change(event: CallbackQuery, state: FSMContext):
 
 
 @user_main.message(ChangeData.ch_username)
-async def change_name(event: Message, state: FSMContext):
+@inject
+async def change_name(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     await state.clear()
-    updated = await service.update_user(event.from_user.id, name=event.text)
+    updated = await user_service.update_user(event.from_user.id, name=event.text)
     if not updated:
         await event.answer(
             text=f"{DATA_CHANGE}\n• ❌ При обновлении данных что-то пошло не так",
@@ -145,10 +166,15 @@ async def change_name(event: Message, state: FSMContext):
 
 
 @user_main.message(ChangeData.ch_email)
-async def change_email(event: Message, state: FSMContext):
+@inject
+async def change_email(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     if is_valid_email(event.text):
         await state.clear()
-        updated = await service.update_user(event.from_user.id, email=event.text)
+        updated = await user_service.update_user(event.from_user.id, email=event.text)
         if not updated:
             await event.answer(
                 text=f"{DATA_CHANGE}\n• ❌ При обновлении данных что-то пошло не так",
@@ -168,10 +194,15 @@ async def change_email(event: Message, state: FSMContext):
 
 
 @user_main.message(ChangeData.ch_phone)
-async def change_phone(event: Message, state: FSMContext):
+@inject
+async def change_phone(
+        event: Message,
+        state: FSMContext,
+        user_service: UserService = Provide[Container.user_service]
+):
     if is_valid_phone(event.text):
         await state.clear()
-        updated = await service.update_user(event.from_user.id, phone=event.text)
+        updated = await user_service.update_user(event.from_user.id, phone=event.text)
         if not updated:
             await event.answer(
                 text=f"{DATA_CHANGE}\n• ❌ При обновлении данных что-то пошло не так",

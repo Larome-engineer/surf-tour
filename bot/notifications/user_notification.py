@@ -1,18 +1,12 @@
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from bot.create import surf_bot
 from bot.handlers.handler_utils import safe_send_all, safe_send_copy_all
-from bot.keyboards.admin import one_button_callback
-from database import service
-from utils.date_utils import perform_date
 from utils.btn_utils import btn_perform
+from utils.date_utils import perform_date
 from utils.plural_form import get_plural_form
 
-
-async def notify_places_lesson(lesson_code, users_list, places: int):
-    lesson = await service.get_lesson_by_code(lesson_code)
-
+async def notify_places_lesson(lesson, users_list, places: int):
     lsn = btn_perform(
         lesson['type'],
         lesson['start_date'],
@@ -41,12 +35,10 @@ async def notify_places_lesson(lesson_code, users_list, places: int):
     return send, not_send
 
 
-async def notify_places_tour(tour_name, users_list, places: int):
-    tour = await service.get_tour_by_name(tour_name)
-
+async def notify_places_tour(tour, users_list, places: int):
     text = (
         f"🔥 ДОБАВЛИСЬ МЕСТА! 🔥\n"
-        f"{tour_name}\n{btn_perform(tour['dest'], tour['start'], tour['time'], is_lesson=False)}"
+        f"{tour['name']}\n{btn_perform(tour['dest'], tour['start'], tour['time'], is_lesson=False)}"
         f"Добавилось: {places} {get_plural_form(places, 'Место', 'Места', 'Мест')}\n\n"
         f"⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️",
     )
@@ -84,7 +76,7 @@ async def notify_about_lesson(lesson: dict, users):
         f"{lesson['type']}\n"
         f"{lesson['dest']}\n"
         f"{perform_date(lesson['start'], lesson['time'])}"
-        f"⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
+        f"\n\n⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
     )
 
     builder = InlineKeyboardBuilder()
@@ -115,7 +107,7 @@ async def notify_about_tour(tour, users):
         f"{tour['name']}\n"
         f"{tour['dest']}\n"
         f"{perform_date(tour['start'], tour['time'])}"
-        f"⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
+        f"\n\n⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
     )
 
     builder = InlineKeyboardBuilder()
@@ -131,6 +123,7 @@ async def notify_about_tour(tour, users):
 
     return send, not_send
 
+
 async def mailing_action(from_chat, message, users):
     send, not_send = await safe_send_copy_all(
         from_chat=from_chat,
@@ -138,5 +131,3 @@ async def mailing_action(from_chat, message, users):
         users=users
     )
     return send, not_send
-
-

@@ -1,15 +1,22 @@
 from aiogram import Router, F
+from bot.keyboards.admin import *
+from bot.handlers.handler_utils import *
+from bot.filters.isAdmin import IsAdmin
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from dependency_injector.wiring import Provide, inject
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
+from DIcontainer import Container
+
+
 from aiogram_calendar import SimpleCalendarCallback
 from aiogram_calendar.simple_calendar import SimpleCalendar
 
-from bot.filters.isAdmin import IsAdmin
-from bot.handlers.handler_utils import safe_edit_text, safe_answer, get_and_clear, safe_delete
-from bot.keyboards.admin import *
-from bot.notifications.user_notification import *
-from database import service
+from bot.notifications.user_notification import notify_about_tour, notify_places_tour
+from service.destination_service import DestService
+from service.export_service import ExportService
+from service.tour_service import TourService
+from service.user_service import UserService
 
 admin_tour = Router()
 
@@ -32,9 +39,15 @@ class AddTour(StatesGroup):
 
 
 @admin_tour.callback_query(F.data == "AddTour", IsAdmin())
-async def add_tour_start(event: CallbackQuery, state: FSMContext):
+@inject
+async def add_tour_start(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service]
+):
     await state.clear()
-    directions = await service.get_all_destinations()
+    await safe_answer(event)
+    directions = await dest_service.get_all_destinations()
     if directions is None:
         await safe_edit_text(
             event,
@@ -88,6 +101,13 @@ async def add_tour_desc(event: Message, state: FSMContext):
 
 @admin_tour.message(AddTour.places, IsAdmin())
 async def add_tour_places(event: Message, state: FSMContext):
+    if int(event.text) <= 0:
+        await event.answer(
+            text=f"{ADD_TOUR}\nКОЛ-ВО МЕСТ ДОЛЖНО БЫТЬ > 0\n\n• Отправьте общее кол-во мест на тур",
+            reply_markup=back_to("Отмена создания урока", callback="BackToLessonMenu")
+        )
+        await state.set_state(AddTour.places)
+        return
     await state.update_data(places=event.text)
     await event.answer(
         text=f"{ADD_TOUR}\n• Отправьте дату начала тура или отправьте /start для отмены",
@@ -101,6 +121,15 @@ async def add_tour_start_date(event: CallbackQuery, callback_data: SimpleCalenda
     await safe_answer(event)
     selected, date = await SimpleCalendar(locale="ru_RU").process_selection(event, callback_data)
     if selected:
+        if date < datetime.now():
+            await safe_edit_text(
+                event,
+                text=f"{ADD_TOUR}\nНЕПРАВИЛЬНАЯ ДАТА. ПОПРОБУЙТЕ ЕЩЕ РАЗ\n\n"
+                     f"• Отправьте дату начала тура.\n-> Для отмены нажмите команду /start",
+                reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+            )
+            await state.set_state(AddTour.start)
+            return
         await state.update_data(start=date)
         await safe_edit_text(
             event,
@@ -112,6 +141,7 @@ async def add_tour_start_date(event: CallbackQuery, callback_data: SimpleCalenda
 
 @admin_tour.callback_query(SimpleCalendarCallback.filter(), AddTour.end, IsAdmin())
 async def add_tour_end_date(event: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
+    await safe_answer(event)
     selected, date = await SimpleCalendar(locale="ru_RU").process_selection(event, callback_data)
     if selected:
         data = await state.get_data()
@@ -144,10 +174,16 @@ async def add_tour_time(event: Message, state: FSMContext):
 
 
 @admin_tour.message(AddTour.price, IsAdmin())
-async def add_tour_price(event: Message, state: FSMContext):
+@inject
+async def add_tour_price(
+        event: Message,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service],
+        user_service: UserService = Provide[Container.user_service]
+):
     tour_data = await get_and_clear(state)
 
-    tour = await service.create_tour(
+    tour = await tour_service.create_tour(
         tour_name=tour_data['name'],
         tour_desc=tour_data['desc'],
         tour_places=tour_data['places'],
@@ -165,7 +201,7 @@ async def add_tour_price(event: Message, state: FSMContext):
         )
         return
 
-    all_users = await service.get_all_users()
+    all_users = await user_service.get_all_users()
     if not all_users:
         await event.answer(
             text=f"{ADD_TOUR}\n• Тур по направлению {tour_data['dest']} успешно создан\n"
@@ -183,11 +219,16 @@ async def add_tour_price(event: Message, state: FSMContext):
 
 
 @admin_tour.callback_query(F.data == "BookedTours", IsAdmin())
-async def get_booked_tours(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_booked_tours(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    booked = await service.get_all_booked_tours()
+    booked = await tour_service.get_all_booked_tours()
     if not booked:
         await safe_edit_text(
             event,
@@ -196,16 +237,9 @@ async def get_booked_tours(event: CallbackQuery, state: FSMContext):
         )
         return
 
-    result = [f"{LIST}\n"]
-    # for i, tour in enumerate(booked, start=1):
-    #     result.append(
-    #         f"<b>{i}. <code>{tour['Пользователь']}</code></b>\n"
-    #         f"📝 {tour['Тур']}\n"
-    #         f"👥 Цена: {tour['Цена']}"
-    #     )
     await safe_edit_text(
         event,
-        f"{"\n".join(result)}",
+        text=f"{LIST}\n",
         reply_markup=build_tours_pagination_keyboard(
             list_of_tours=booked,
             back_callback="BackToTourMenu"
@@ -213,29 +247,23 @@ async def get_booked_tours(event: CallbackQuery, state: FSMContext):
 
 
 @admin_tour.callback_query(F.data == "AllTourList", IsAdmin())
-async def get_tours_list(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_tours_list(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
     await state.clear()
     await safe_answer(event)
 
-    tours = await service.get_all_tours()
+    tours = await tour_service.get_all_tours()
     if not tours:
         await safe_edit_text(event, f"{LIST}\n• Пока нет туров", reply_markup=tour_menu())
         return
 
-    result = [
-        f"{LIST}\nДля подробной информации нажми на нужный тур на клавиатуре\n\n"
-    ]
-    # for i, tour in enumerate(tours, start=1):
-    #     result.append(
-    #         f"<b>{i}. <code>{tour['name']}</code></b>\n"
-    #         f"🔜 {tour['dest']}\n"
-    #         f"🔜 Время начала{tour['time']}\n"
-    #         f"📅 {tour['start_date']} - {tour['end_date']}\n"
-    #     )
-
     await safe_edit_text(
         event,
-        text=f"{'\n'.join(result)}",
+        text=f"{LIST}\nДля подробной информации нажми на нужный тур на клавиатуре\n\n",
         reply_markup=build_tours_pagination_keyboard(
             list_of_tours=tours,
             value_key="name",
@@ -249,12 +277,17 @@ async def get_tours_list(event: CallbackQuery, state: FSMContext):
         c.data.startswith("InfoAboutTour_page:") or
         c.data.startswith("InfoAboutTour_")
 ), IsAdmin())
-async def get_tour_information(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_tour_information(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
     await state.clear()
     await safe_answer(event)
 
     data = event.data
-    tours = await service.get_all_tours()
+    tours = await tour_service.get_all_tours()
 
     if "page:" in data:
         page = int(data.split(":")[-1])
@@ -271,7 +304,7 @@ async def get_tour_information(event: CallbackQuery, state: FSMContext):
         )
     elif data.startswith("InfoAboutTour_"):
         tour_name = data.split("_")[1]
-        tour = await service.get_tour_by_name(tour_name)
+        tour = await tour_service.get_tour_by_name(tour_name)
         if tour:
             result = (
                 f"<b>{tour['name'].upper()}</b>\n\n"
@@ -295,10 +328,15 @@ async def get_tour_information(event: CallbackQuery, state: FSMContext):
 
 
 @admin_tour.callback_query(F.data == "TourByDirection", IsAdmin())
-async def get_tours_by_dest_start(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_tours_by_dest_start(
+        event: CallbackQuery,
+        state: FSMContext,
+        dest_service: DestService = Provide[Container.destination_service]
+):
     await state.clear()
     await safe_answer(event)
-    directions = await service.get_all_destinations()
+    directions = await dest_service.get_all_destinations()
     if not directions:
         await safe_edit_text(event, "Пока нет направлений", reply_markup=tour_menu())
         return
@@ -315,26 +353,23 @@ async def get_tours_by_dest_start(event: CallbackQuery, state: FSMContext):
 
 
 @admin_tour.callback_query(F.data.startswith("AdminSearchByDirection_"), IsAdmin())
-async def get_tours_by_dest_name(event: CallbackQuery, state: FSMContext):
+@inject
+async def get_tours_by_dest_name(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
     await state.clear()
     await safe_answer(event)
     call = event.data.split("_")[1]
-    tours = await service.get_all_tour_by_dest(call)
+    tours = await tour_service.get_all_tour_by_dest(call)
     if not tours:
         await safe_edit_text(event, f"{LIST}\n• Туров по направлению {call} нет", reply_markup=tour_menu())
         return
 
-    result = [f"{LIST}\nДля подробной информации нажми на нужный тур на клавиатуре\n\n"]
-    # for i, tour in enumerate(tours, start=1):
-    #     result.append(
-    #         f"<b>#{i}. <code>{tour['name']}</code></b>\n"
-    #         f"🔜 {tour['dest']}\n"
-    #         f"🔜 Время начала{tour['time']}\n"
-    #         f"📅 {tour['start_date']} - {tour['end_date']}\n"
-    #     )
     await safe_edit_text(
         event,
-        text=f"{'\n'.join(result)}",
+        text=f"{LIST}\nДля подробной информации нажми на нужный тур на клавиатуре\n\n",
         reply_markup=build_tours_pagination_keyboard(
             list_of_tours=tours,
             value_key="name",
@@ -361,7 +396,13 @@ async def add_tour_places_start(event: CallbackQuery, state: FSMContext):
 
 
 @admin_tour.message(AddTourPlaces.places, IsAdmin())
-async def add_tour_places_choice(event: Message, state: FSMContext):
+@inject
+async def add_tour_places_choice(
+        event: Message,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service],
+        user_service: UserService = Provide[Container.user_service]
+):
     state_data = await get_and_clear(state)
 
     try:
@@ -374,7 +415,7 @@ async def add_tour_places_choice(event: Message, state: FSMContext):
         )
         return
 
-    add_places = await service.add_places_on_tour(state_data['name'], int(event.text))
+    add_places = await tour_service.add_places_on_tour(state_data['name'], int(event.text))
     if not add_places:
         await event.answer(
             text=f"{ADD_PLACES}\n• При добавлении мест что-то пошло не так",
@@ -382,7 +423,8 @@ async def add_tour_places_choice(event: Message, state: FSMContext):
         )
         return
 
-    users_list = await service.get_all_users_ids()
+    tour = await tour_service.get_tour_by_name(state_data['name'])
+    users_list = await user_service.get_all_users_ids()
     if not users_list:
         await event.answer(
             text=f"{ADD_PLACES}\n• Места на тур {state_data['name']} успешно добавлены\n"
@@ -391,7 +433,7 @@ async def add_tour_places_choice(event: Message, state: FSMContext):
         )
         return
 
-    send, not_send = await notify_places_tour(state_data['name'], users_list, int(event.text))
+    send, not_send = await notify_places_tour(tour, users_list, int(event.text))
     await event.answer(
         text=f"{ADD_PLACES}\n• Места на тур {state_data['name']} успешно добавлены\n\n"
              f"<b>Уведомление</b>\n✅ Получили: {send}\n❌ Не получили: {not_send}",
@@ -400,13 +442,18 @@ async def add_tour_places_choice(event: Message, state: FSMContext):
 
 
 @admin_tour.callback_query(F.data.startswith("DeleteTour_"), IsAdmin())
-async def delete_tour(event: CallbackQuery, state: FSMContext):
+@inject
+async def delete_tour(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
     await state.clear()
     await safe_answer(event)
 
     tour_name = event.data.split("_")[1]
 
-    has_booked = await service.get_future_paid_tour(tour_name)
+    has_booked = await tour_service.get_future_paid_tour(tour_name)
     if has_booked:
         await safe_edit_text(
             event,
@@ -427,13 +474,18 @@ async def delete_tour(event: CallbackQuery, state: FSMContext):
 
 
 @admin_tour.callback_query(F.data.startswith("ToRemoveTour_"), IsAdmin())
-async def yes_to_remove_lesson(event: CallbackQuery, state: FSMContext):
+@inject
+async def yes_to_remove_lesson(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
     await safe_answer(event)
     data = await get_and_clear(state)
     answer = event.data.split("_")[1]
 
     if answer == "yes":
-        export = await service.export_db()
+        export = await ExportService.export_db()
         if not export:
             await safe_edit_text(
                 event,
@@ -449,7 +501,7 @@ async def yes_to_remove_lesson(event: CallbackQuery, state: FSMContext):
             caption="📦 Бэкап данных."
         )
 
-    deleted = await service.delete_tour(data['name'])
+    deleted = await tour_service.delete_tour(data['name'])
     if not deleted:
         if answer == "yes":
             await event.message.answer(
