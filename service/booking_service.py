@@ -5,7 +5,7 @@ class BookingService:
     def __init__(self, booking_repo: BookingRepository):
         self.repo = booking_repo
 
-    async def has_future_bookings_for_destination(self, destination) -> bool | None:
+    async def has_future_bookings_for_destination(self, destination: str) -> bool | None:
         """
             Проверяет есть ли будущие бронирования для указанного направления.
 
@@ -19,5 +19,5 @@ class BookingService:
             Raises:
                 DatabaseError: При ошибках запроса к БД
             """
-        has_booked = await self.repo.has_future_bookings_for_destination(destination)
+        has_booked = await self.repo.has_future_bookings_for_destination(destination.lower())
         return has_booked

@@ -3,7 +3,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.handlers.handler_utils import safe_send_all, safe_send_copy_all
 from utils.btn_utils import btn_perform
-from utils.date_utils import perform_date
+from utils.date_utils import perform_date, safe_parse_date
 from utils.plural_form import get_plural_form
 
 async def notify_places_lesson(lesson, users_list, places: int):
@@ -38,13 +38,13 @@ async def notify_places_lesson(lesson, users_list, places: int):
 async def notify_places_tour(tour, users_list, places: int):
     text = (
         f"🔥 ДОБАВЛИСЬ МЕСТА! 🔥\n"
-        f"{tour['name']}\n{btn_perform(tour['dest'], tour['start'], tour['time'], is_lesson=False)}"
+        f"{tour['name']}\n{btn_perform(tour['dest'], safe_parse_date(tour['start_date']).strftime("%d.%m.%Y"), tour['time'], is_lesson=False)}"
         f"Добавилось: {places} {get_plural_form(places, 'Место', 'Места', 'Мест')}\n\n"
         f"⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️",
     )
     tour_perform = btn_perform(
         tour['dest'],
-        tour['start'],
+        tour['start_date'],
         tour['time'],
         end_date=tour['end'],
         is_lesson=False
@@ -106,7 +106,7 @@ async def notify_about_tour(tour, users):
         f"🏕 ОТКРЫЛСЯ НОВЫЙ ТУР! 🏕\n"
         f"{tour['name']}\n"
         f"{tour['dest']}\n"
-        f"{perform_date(tour['start'], tour['time'])}"
+        f"{perform_date(tour['start'].strftime("%d.%m.%Y"), tour['time'])}"
         f"\n\n⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
     )
 

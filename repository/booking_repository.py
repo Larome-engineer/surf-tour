@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 
 from database.models import Destination, Tour, UserTour, UserSurf, SurfLesson
-from utils.date_utils import parse_date
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 class BookingRepository:
     async def has_future_bookings_for_destination(self, dest_name: str) -> bool:
         try:
-            destination = await Destination.get_or_none(destination=dest_name)
+            destination = await Destination.get_or_none(destination=dest_name.lower())
             if not destination:
                 return False  # Если направления нет — точно ничего нет
 
@@ -22,11 +21,7 @@ class BookingRepository:
             ).only("tour_id", "start_date").all()
 
             for tour in tours:
-                try:
-                    start_date = parse_date(tour.start_date)
-                except ValueError:
-                    continue  # Если дата кривая — пропускаем
-                if start_date >= today:
+                if tour.start_date >= today:
                     # Проверяем есть ли записи
                     if await UserTour.filter(tour=tour).exists():
                         return True
@@ -37,11 +32,7 @@ class BookingRepository:
             ).only("surf_id", "start_date").all()
 
             for lesson in lessons:
-                try:
-                    start_date = parse_date(lesson.start_date)
-                except ValueError:
-                    continue
-                if start_date >= today:
+                if lesson.start_date >= today:
                     if await UserSurf.filter(surf=lesson).exists():
                         return True
 

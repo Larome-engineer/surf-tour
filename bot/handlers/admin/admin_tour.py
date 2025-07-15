@@ -190,7 +190,7 @@ async def add_tour_price(
         start_date=tour_data['start'],
         start_time=tour_data['time'],
         end_date=tour_data['end'],
-        tour_price=event.text,
+        tour_price=int(event.text),
         tour_destination=tour_data['dest']
     )
 
@@ -256,7 +256,7 @@ async def get_tours_list(
     await state.clear()
     await safe_answer(event)
 
-    tours = await tour_service.get_all_tours()
+    tours = await tour_service.get_all_tours_with_places()
     if not tours:
         await safe_edit_text(event, f"{LIST}\n• Пока нет туров", reply_markup=tour_menu())
         return
@@ -287,7 +287,7 @@ async def get_tour_information(
     await safe_answer(event)
 
     data = event.data
-    tours = await tour_service.get_all_tours()
+    tours = await tour_service.get_all_tours_with_places()
 
     if "page:" in data:
         page = int(data.split(":")[-1])
@@ -312,7 +312,7 @@ async def get_tour_information(
                 f"📝 {tour['desc']}\n"
                 f"👥 Места: {tour['places']}\n"
                 f"⏰ Время начала: {tour['time']}\n"
-                f"📅 {tour['start_date']} - {tour['end_date']}\n"
+                f"📅 {tour['start_date'].strftime("%d.%m.%Y")} - {tour['end_date'].strftime("%d.%m.%Y")}\n"
                 f"💰 {str(tour['price'])}₽"
             )
             await safe_edit_text(
@@ -342,7 +342,7 @@ async def get_tours_by_dest_start(
         return
     await safe_edit_text(
         event,
-        text=f"{BY_DIRECT}\n• Выберите выберите доступное направление",
+        text=f"{BY_DIRECT}\n• Выберите доступное направление",
         reply_markup=simple_build_dynamic_keyboard(
             list_of_values=directions,
             value_key="name",

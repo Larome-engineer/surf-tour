@@ -12,9 +12,9 @@ class DestRepository:
             logger.error(f"Failed to create_destination: {destination}, {str(e)}")
             raise
 
-    async def get_destination_by_name(self, name) -> Destination:
+    async def get_destination_by_name(self, name: str) -> Destination:
         try:
-            return await Destination.get_or_none(destination=name)
+            return await Destination.get_or_none(destination=name.lower())
         except Exception as e:
             logger.error(f"Failed to get_dest_by_name: {name}, {str(e)}")
             raise

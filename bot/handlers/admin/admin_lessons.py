@@ -51,10 +51,17 @@ async def add_lesson_start(
     await safe_answer(event)
     directions = await dest_service.get_all_destinations()
     types = await lesson_service.get_lesson_types()
-    if directions is None or types is None:
+    if not directions:
         await safe_edit_text(
             event,
-            text=f"{ADD_LESSON}\n• Чтобы добавить урок/тур, должно быть хотя бы 1 направление",
+            text=f"{ADD_LESSON}\n• Чтобы добавить урок, должно быть хотя бы 1 направление",
+            reply_markup=lesson_menu()
+        )
+
+    if not types:
+        await safe_edit_text(
+            event,
+            text=f"{ADD_LESSON}\n• Чтобы добавить урок должен быть хотя бы 1 тип урока",
             reply_markup=lesson_menu()
         )
 
@@ -210,8 +217,8 @@ async def add_lesson_create(
         places=lesson_data['places'],
         start=lesson_data['start'],
         time=lesson_data['time'],
-        lesson_type=lesson_data['type'],
-        price=event.text,
+        lesson_type=lesson_data['type'].capitalize(),
+        price=int(event.text),
         dest=lesson_data['dest']
     )
 
@@ -225,7 +232,7 @@ async def add_lesson_create(
         return
     lesson_data['unicode'] = lesson[1]
     lsn = btn_perform(
-        lesson_data['type'],
+        lesson_data['type'].capitalize(),
         lesson_data['start'],
         lesson_data['time']
     )
@@ -377,7 +384,7 @@ async def get_lesson_by_destination_start(
     if directions is not None:
         await safe_edit_text(
             event,
-            text=f"{LESSON_LIST}\n• Выберите выберите доступное направление",
+            text=f"{LESSON_LIST}\n• Выберите доступное направление",
             reply_markup=simple_build_dynamic_keyboard(
                 list_of_values=directions,
                 value_key="name",
@@ -605,7 +612,11 @@ class AddLessonType(StatesGroup):
 
 @admin_lessons.callback_query(F.data == "AddLessonType")
 async def add_lesson_type(event: CallbackQuery, state: FSMContext):
-    await clear_and_edit(event, state, f"{ADD_TYPE}\n• Отправьте тип урока")
+    await clear_and_edit(
+        event, state,
+        text=f"{ADD_TYPE}\n• Отправьте тип урока",
+        reply_markup=one_button_callback("Отмена", "BackToLessonMenu")
+    )
     await state.set_state(AddLessonType.type)
 
 

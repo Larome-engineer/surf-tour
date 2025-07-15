@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from database.models import SurfLesson
 from repository.lesson_repository import LessonRepository
@@ -13,8 +14,16 @@ class LessonService:
         self.repo = lesson_repo
         self.dest_service = destination_service
 
-    async def create_lesson(self, desc, places, start, time, duration, price, dest, lesson_type):
-        destination = await self.dest_service.get_destination(dest)
+    async def create_lesson(self, desc: str,
+                            places: int,
+                            start: datetime,
+                            time: str,
+                            duration: str,
+                            price: float,
+                            dest: str,
+                            lesson_type: str
+                            ):
+        destination = await self.dest_service.get_destination(dest.lower())
         less_type = await self.repo.get_lesson_type(lesson_type)
         if destination is None or less_type is None: return None
         unicode = await self.repo.create_lesson(
@@ -22,7 +31,7 @@ class LessonService:
                 surf_desc=desc,
                 surf_places=places,
                 surf_duration=duration,
-                start_date=start.date().strftime("%d.%m.%Y"),
+                start_date=start.date(),
                 start_time=time,
                 surf_price=price,
                 surf_destination=destination,
@@ -43,32 +52,14 @@ class LessonService:
             return None
         return [serialize_lesson(surf=l) for l in lessons]
 
-    async def get_all_lessons_by_dest(self, destination_name):
-        lessons = await self.repo.get_all_lessons_by_dest(destination_name)
+    async def get_all_lessons_by_dest(self, destination_name: str):
+        lessons = await self.repo.get_all_lessons_by_dest(destination_name.lower())
         if not lessons:
             return None
         return [serialize_lesson(surf=l) for l in lessons]
 
     async def get_all_lessons_with_places(self):
         lessons = await self.repo.get_all_lessons_with_places()
-        if not lessons:
-            return None
-        return [serialize_lesson(surf=l) for l in lessons]
-
-    async def get_all_lessons_by_date(self, start_date):
-        lessons = await self.repo.get_lessons_by_date(start_date)
-        if not lessons:
-            return None
-        return [serialize_lesson(surf=l) for l in lessons]
-
-    async def get_future_lessons(self):
-        lessons = await self.repo.get_future_lessons()
-        if not lessons:
-            return None
-        return [serialize_lesson(surf=l) for l in lessons]
-
-    async def get_all_paid_lesson(self):
-        lessons = await self.repo.get_all_paid_lesson()
         if not lessons:
             return None
         return [serialize_lesson(surf=l) for l in lessons]
@@ -84,12 +75,6 @@ class LessonService:
         if not lesson:
             return None
         return lesson
-
-    async def get_all_booked_lessons(self):
-        lessons = await self.repo.get_all_booked_lessons()
-        if not lessons:
-            return None
-        return [serialize_lesson(surf=l) for l in lessons]
 
     async def get_all_booked_lessons_future(self):
         lessons = await self.repo.get_all_booked_lessons_future()

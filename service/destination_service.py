@@ -11,24 +11,18 @@ class DestService:
     def __init__(self, dest_repo: DestRepository):
         self.repo = dest_repo
 
-    async def create_destination(self, name):
-        dest = await self.repo.get_destination_by_name(name)
+    async def create_destination(self, name: str):
+        dest = await self.repo.get_destination_by_name(name.lower())
         if dest is None:
             await self.repo.create_destination(
-                Destination(destination=name)
+                Destination(destination=name.lower())
             )
             return True
         else:
             return False
 
-    async def get_destination_by_name(self, name):
-        d = await self.repo.get_destination_by_name(name)
-        if not d:
-            return None
-        return serialize_destination(d)
-
-    async def get_destination(self, name):
-        d = await self.repo.get_destination_by_name(name)
+    async def get_destination(self, name: str):
+        d = await self.repo.get_destination_by_name(name.lower())
         if not d:
             return None
         return d
@@ -39,6 +33,6 @@ class DestService:
             return None
         return [serialize_destination(dest=d) for d in dest]
 
-    async def delete_destination_by_name(self, name):
-        await self.repo.delete_destination_by_name(name)
+    async def delete_destination_by_name(self, name: str):
+        await self.repo.delete_destination_by_name(name.lower())
         return True

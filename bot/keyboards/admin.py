@@ -103,6 +103,7 @@ def one_button_callback(text, callback):
         width=1
     ).as_markup()
 
+
 def any_button_kb(text, callback):
     builder = InlineKeyboardBuilder()
     for i in range(len(text)):
@@ -182,7 +183,7 @@ def generate_lesson_kb(lessons, callback, back_callback):
     builder = InlineKeyboardBuilder()
     for lsn in lessons:
         date = datetime.strptime(lsn['start_date'], "%d.%m.%Y")
-        type_lsn_text = lsn['type'].split(" ")
+        type_lsn_text = lsn['type'].capitalize().split(" ")
         builder.row(
             InlineKeyboardButton(
                 text=f"{type_lsn_text[0][:3]}.{type_lsn_text[1]} | "
@@ -207,7 +208,7 @@ def build_lessons_pagination_keyboard(
     page_items = lessons[start:end]
 
     for l in page_items:
-        date = datetime.strptime(l['start_date'], "%d.%m.%Y")
+        date = l['start_date']
         label = f"{DAYS_RU[date.weekday()]}, {date.day} {MONTHS_RU[date.month]} | {l['time']}"
         keyboard.button(
             text=label,
@@ -279,7 +280,7 @@ def build_tours_pagination_keyboard(
     page_items = list_of_tours[start:end]
 
     for tour in page_items:
-        label = f"{tour[value_key]} | {tour.get('start_date', '')}"
+        label = f"{tour[value_key]} | {tour.get('start_date', '').strftime("%d.%m.%Y")}"
         keyboard.button(
             text=label,
             callback_data=f"{callback}{tour[value_key]}"
@@ -315,6 +316,7 @@ def build_tours_pagination_keyboard(
         keyboard.row(*nav_buttons)
 
     return keyboard.as_markup()
+
 
 def build_users_pagination_keyboard(
         users: list,
@@ -363,6 +365,7 @@ def build_users_pagination_keyboard(
         keyboard.row(*nav_buttons)
 
     return keyboard.as_markup()
+
 
 def yes_or_not(text_yes, callback_yes, text_no, callback_no):
     return InlineKeyboardBuilder().row(

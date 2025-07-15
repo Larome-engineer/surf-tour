@@ -3,7 +3,7 @@ from datetime import datetime
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from utils.date_utils import DAYS_RU, MONTHS_RU
+from utils.date_utils import DAYS_RU, MONTHS_RU, safe_parse_date
 
 
 def user_main_menu():
@@ -78,8 +78,8 @@ def generate_keyboard2(list_of_text: list[str], list_of_callback: list[str], add
 def generate_lesson_kb(lessons, callback, back_callback):
     builder = InlineKeyboardBuilder()
     for lsn in lessons:
-        date = datetime.strptime(lsn['start_date'], "%d.%m.%Y")
-        type_lsn_text = lsn['type'].split(" ")
+        date = safe_parse_date(lsn['start_date'])
+        type_lsn_text = lsn['type'].capitalize().split(" ")
         builder.row(
             InlineKeyboardButton(
                 text=f"{type_lsn_text[0][:3]}.{type_lsn_text[1]} | "
@@ -112,7 +112,7 @@ def build_upcoming_lessons_pagination_keyboard(
     page_items = lessons[start:end]
 
     for l in page_items:
-        date = datetime.strptime(l['start_date'], "%d.%m.%Y")
+        date = l['start_date']
         label = f"{DAYS_RU[date.weekday()]}, {date.day} {MONTHS_RU[date.month]} | {l['time']}"
         keyboard.button(
             text=label,
@@ -163,7 +163,7 @@ def build_lessons_pagination_keyboard(
     page_items = lessons[start:end]
 
     for l in page_items:
-        date = datetime.strptime(l['start_date'], "%d.%m.%Y")
+        date = l['start_date']
         label = f"{DAYS_RU[date.weekday()]}, {date.day} {MONTHS_RU[date.month]} | {l['time']}"
         keyboard.button(
             text=label,
@@ -235,7 +235,7 @@ def build_tours_pagination_keyboard(
     page_items = list_of_tours[start:end]
 
     for tour in page_items:
-        label = f"{tour[value_key]} | {tour.get('start_date', '')}"
+        label =  f"{tour[value_key]} | {tour.get('start_date', '').strftime("%d.%m.%Y")}"
         keyboard.button(
             text=label,
             callback_data=f"{callback}{tour[value_key]}"

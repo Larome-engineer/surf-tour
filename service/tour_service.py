@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from database.models import Tour
 from repository.tour_repository import TourRepository
@@ -13,9 +14,17 @@ class TourService:
         self.repo = tour_repo
         self.dest_service = destination_service
 
-    async def create_tour(self, tour_name, tour_desc, tour_places, start_date,
-                          start_time, end_date, tour_price, tour_destination):
-        destination = await self.dest_service.get_destination(tour_destination)
+    async def create_tour(self,
+                          tour_name: str,
+                          tour_desc: str,
+                          tour_places: int,
+                          start_date: datetime,
+                          start_time: str,
+                          end_date: datetime,
+                          tour_price: int,
+                          tour_destination: str
+                          ):
+        destination = await self.dest_service.get_destination(tour_destination.lower())
         if destination is None:
             return False
 
@@ -24,9 +33,9 @@ class TourService:
                 tour_name=tour_name,
                 tour_desc=tour_desc,
                 tour_places=tour_places,
-                start_date=start_date.date().strftime("%d.%m.%Y"),
+                start_date=start_date.date(),
                 start_time=start_time,
-                end_date=end_date.date().strftime("%d.%m.%Y"),
+                end_date=end_date.date(),
                 tour_price=tour_price,
                 tour_destination=destination,
             )
@@ -84,14 +93,14 @@ class TourService:
             return None
         return [serialize_tour(tour=t) for t in tours]
 
-    async def get_all_tours(self):
-        tours = await self.repo.get_all_tours()
-        if not tours:
-            return None
-        return [serialize_tour(tour=t) for t in tours]
+    # async def get_all_tours(self):
+    #     tours = await self.repo.get_all_tours()
+    #     if not tours:
+    #         return None
+    #     return [serialize_tour(tour=t) for t in tours]
 
-    async def get_all_tour_by_dest(self, destination_name):
-        tours = await self.repo.get_all_tour_by_dest(destination_name)
+    async def get_all_tour_by_dest(self, destination_name: str):
+        tours = await self.repo.get_all_tour_by_dest(destination_name.lower())
         if not tours:
             return None
         return [serialize_tour(tour=t) for t in tours]

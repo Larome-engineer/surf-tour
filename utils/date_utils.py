@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime, date
 
 DAYS_RU = {
     0: "Пн",
@@ -23,16 +23,21 @@ def format_date_range(start: datetime.date, end: datetime.date) -> str:
     return f"{start_str} – {end_str}"
 
 
-def parse_date(date_str: str) -> date | None:
-    try:
-        return datetime.strptime(date_str, "%d.%m.%Y").date()
-    except ValueError:
-        return None
+def safe_parse_date(value) -> date | None:
+    if isinstance(value, date):
+        return value
+
+    if isinstance(value, str):
+        for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+
+    return None
 
 
-def perform_date(lesson_date: datetime | str, lesson_time: str) -> str:
-    if isinstance(lesson_date, str):
-        lesson_date = parse_date(lesson_date)
+def perform_date(lesson_date: datetime, lesson_time: str) -> str:
     return (
         f"{DAYS_RU[lesson_date.weekday()]}, {lesson_date.day} "
         f"{MONTHS_RU[lesson_date.month]} | {lesson_time}"

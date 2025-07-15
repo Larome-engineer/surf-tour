@@ -23,7 +23,7 @@ class PaymentService:
 
     async def create_tour_payment(self, tg_id, price, tour_name):
         user = await self.user_service.get_user(tg_id)
-        tour = await self.tour_service.get_tour_by_name(tour_name)
+        tour = await self.tour_service.get_tour(tour_name)
 
         if not user or not tour:
             # Не нашли пользователя или урок
@@ -35,7 +35,7 @@ class PaymentService:
         # Создаём оплату
         payment = await self.repo.create_tour_payment(
             TourPayment(
-                pay_date=datetime.now().strftime("%d.%m.%Y"),
+                pay_date=datetime.now().date(),
                 pay_price=price,
                 user=user,
                 tour=tour
@@ -58,7 +58,7 @@ class PaymentService:
         # Создаём оплату
         payment = await self.repo.create_surf_payment(
             SurfPayment(
-                pay_date=datetime.now().strftime("%d.%m.%Y"),
+                pay_date=datetime.now().date(),
                 pay_price=price,
                 user=user,
                 surf=surf

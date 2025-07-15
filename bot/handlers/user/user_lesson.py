@@ -1,3 +1,5 @@
+from time import strftime
+
 from aiogram import Router, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.state import StatesGroup, State
@@ -50,7 +52,7 @@ async def book_lesson(
     lesson = await lesson_service.get_user_lesson_details(event.from_user.id, lesson_code)
     lesson_naming = (
         f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-        f"Наименование урока:\n{lsn['type']} | {lsn['start_date']} | {lsn['type']}"
+        f"Наименование урока:\n{lsn['type'].capitalize()} | {lsn['start_date'].strftime("%d.%m.%Y")} | {lsn['time']}"
     )
     if lesson is not None:
         await safe_edit_text(
@@ -258,6 +260,7 @@ async def upcoming_lesson_details(
             reply_markup=build_upcoming_lessons_pagination_keyboard(
                 lessons=lessons,
                 page=page,
+                callback="UpcomingUserLessons_",
                 back_callback="UserAccount"
             )
         )
@@ -265,7 +268,7 @@ async def upcoming_lesson_details(
 
     details = await lesson_service.get_user_lesson_details(event.from_user.id, event.data.split("_")[1])
     text = (
-        f"<b>🏄 {details['type']}</b>\n\n"
+        f"<b>🏄 {details['type'].capitalize()}</b>\n\n"
         f"🗺 {details['dest']}\n"
         f"✏️ {details['desc']}\n"
         f"👥 Забронировано мест: 1/{details['places']}\n"
@@ -339,6 +342,7 @@ async def lesson_information(
             reply_markup=build_lessons_pagination_keyboard(
                 lessons=lessons,
                 page=page,
+                callback="UserMoreAboutLesson_",
                 back_callback="BackToUserMainMenu"
             )
         )
@@ -357,7 +361,7 @@ async def lesson_information(
         f"👥 Свободные места: {lesson['places']}\n"
         f"👥 Время начала: {lesson['time']}\n"
         f"👥 Продолжительность: {lesson['duration']}\n"
-        f"📅 {lesson['start_date']}\n"
+        f"📅 {lesson['start_date'].strftime("%d.%m.%Y")}\n"
         f"💶 {lesson['price']}₽\n"
     ]
 
@@ -368,6 +372,6 @@ async def lesson_information(
             text='Забронировать урок',
             callback='StartBookingLesson_',
             value_key=lesson['unicode'],
-            back_callback="BackToUserMainMenu"
+            back_callback="AllLessonsWithFreePlaces"
         )
     )

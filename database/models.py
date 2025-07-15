@@ -11,13 +11,13 @@ class Destination(models.Model):
 
 class Tour(models.Model):
     tour_id = fields.IntField(pk=True)
-    tour_name = fields.TextField()
-    tour_desc = fields.TextField()
-    tour_places = fields.IntField()
+    tour_name = fields.CharField(max_length=255, null=False)
+    tour_desc = fields.TextField(null=False)
+    tour_places = fields.IntField(null=False)
     start_date = fields.CharField(max_length=10)
     start_time = fields.CharField(max_length=5)  # 'HH:MM'
     end_date = fields.CharField(max_length=10)
-    tour_price = fields.FloatField()
+    tour_price = fields.FloatField(null=False)
     tour_destination = fields.ForeignKeyField(
         "models.Destination",
         related_name="tours",
@@ -31,11 +31,11 @@ class Tour(models.Model):
 class SurfLesson(models.Model):
     surf_id = fields.IntField(pk=True)
     unique_code = fields.CharField(max_length=255, null=False, unique=True)
-    start_date = fields.CharField(max_length=10)
-    start_time = fields.CharField(max_length=5)  # 'HH:MM'
+    start_date = fields.CharField(null=False, max_length=10)
+    start_time = fields.CharField(null=False, max_length=5)  # 'HH:MM'
     surf_duration = fields.TextField(null=False)
-    surf_places = fields.IntField()
-    surf_price = fields.FloatField()
+    surf_places = fields.IntField(null=False)
+    surf_price = fields.FloatField(null=False)
     surf_desc = fields.TextField(null=True)
     surf_destination = fields.ForeignKeyField(
         "models.Destination",
@@ -61,7 +61,7 @@ class LessonType(models.Model):
 
 class User(models.Model):
     user_id = fields.IntField(pk=True)
-    user_tg_id = fields.BigIntField(unique=True)
+    user_tg_id = fields.BigIntField(null=False, unique=True)
     user_name = fields.TextField(null=True)
     user_email = fields.CharField(max_length=255, null=True, unique=True)
     user_phone = fields.CharField(max_length=255, null=True, unique=True)
@@ -118,8 +118,8 @@ class UserSurf(models.Model):
 
 class TourPayment(models.Model):
     pay_id = fields.IntField(pk=True)
-    pay_date = fields.CharField(max_length=10)  # 'YYYY-MM-DD'
-    pay_price = fields.FloatField()
+    pay_date = fields.CharField(null=False, max_length=10)  # 'YYYY-MM-DD'
+    pay_price = fields.FloatField(null=False)
     user = fields.ForeignKeyField(
         "models.User",
         related_name="tour_payments",
@@ -137,8 +137,8 @@ class TourPayment(models.Model):
 
 class SurfPayment(models.Model):
     pay_id = fields.IntField(pk=True)
-    pay_date = fields.CharField(max_length=10)
-    pay_price = fields.FloatField()
+    pay_date = fields.CharField(null=False, max_length=10)
+    pay_price = fields.FloatField(null=False)
     user = fields.ForeignKeyField(
         "models.User",
         related_name="surf_payments",

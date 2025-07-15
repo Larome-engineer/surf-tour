@@ -157,7 +157,7 @@ async def book_tour_applying(
         f"📝 {tour_info['desc']}\n"
         f"👥 Кол-во бронируемых мест: {book_places}\n"
         f"⏰ Время начала: {tour_info['time']}\n"
-        f"📅 {tour_info['start_date']} - {tour_info['end_date']}\n"
+        f"📅 С {tour_info['start_date'].strftime("%d.%m.%Y")} ПО {tour_info['end_date'].strftime("%d.%m.%Y")}\n"
         f"💶 {price}\n"
     )
 
@@ -264,7 +264,7 @@ async def upcoming_tour_details(
         f"📝 {details['desc']}\n"
         f"👥 Всего забронировано мест: {details['places']}\n"
         f"⏰ Время начала: {details['time']}\n"
-        f"📅 {details['start_date']} - {details['end_date']}\n"
+        f"📅 С {details['start_date'].strftime("%d.%m.%Y")} ПО {details['end_date'].strftime("%d.%m.%Y")}\n"
         f"💶 {details['paid']}\n"
     )
 
@@ -320,7 +320,7 @@ async def tour_information(
         page = int(event.data.split(":")[1])
         await safe_edit_text(
             event,
-            f"🏕 <b>СПИСОК ДОСТУПНЫХ ТУРОВ</b> 🏕</b>\n• Страница {page + 1}",
+            f"🏕 <b>СПИСОК ДОСТУПНЫХ ТУРОВ</b> 🏕\n• Страница {page + 1}",
             reply_markup=build_tours_pagination_keyboard(
                 list_of_tours=user_tours,
                 page=page,
@@ -342,7 +342,7 @@ async def tour_information(
         f"📝 {tour['desc']}\n"
         f"👥 Свободные места: {tour['places']}\n"
         f"⏰ Время начала: {tour['time']}\n"
-        f"📅 {tour['start_date']} - {tour['end_date']}\n"
+        f"📅 С {tour['start_date'].strftime("%d.%m.%Y")} ПО {tour['end_date'].strftime("%d.%m.%Y")}\n"
         f"💶 {tour['price']}₽\n"
     ]
 

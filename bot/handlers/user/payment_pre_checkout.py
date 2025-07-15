@@ -93,19 +93,19 @@ async def successful_payment(
             await lesson_service.reduce_places_on_lesson(code=unicode, count=places)
             result = [
                 f"<b> 🎫 БРОНИРОВАНИЕ ПОДТВЕРЖДЕНО 🎫</b>\n\n"
-                f"🏄 <b>{lesson['type']}</b>\n"
+                f"🏄 <b>{lesson['type'].capitalize()}</b>\n"
                 f"🗺 Направление: {lesson['dest']}\n"
                 f"📝 Описание: {lesson['desc']}\n"
                 f"⏰ Время начала: {lesson['time']}\n"
                 f"⌛️ Продолжительность: {lesson['duration']}\n"
-                f"📅 Дата: {lesson['start_date']}\n"
+                f"📅 Дата: {lesson['start_date'].strftime("%d.%m.%Y")}\n"
                 f"👥 Забронированных мест: {places}\n"
                 f"💶 Оплачено: {price}\n"
             ]
 
             pdf = await generate_invoice_pdf_lesson(
                 user_name=user_entity['name'],
-                lsn_type=lesson['type'],
+                lsn_type=lesson['type'].capitalize(),
                 destination=lesson['dest'],
                 start_date=lesson['start_date'],
                 time=lesson['time'],
@@ -116,11 +116,13 @@ async def successful_payment(
 
             pdf_file = BufferedInputFile(
                 pdf.getvalue(),
-                filename=f"Бронирование_{lesson['type']} | {lesson['start_date']} | {user_entity['name']}.pdf"
+                filename=f"Бронирование_{lesson['type'].capitalize()} | {lesson['start_date']} | {user_entity['name']}.pdf"
             )
-            result.append(f"👨🏻‍💻 Пользователь: {user_entity['name']} (📞 {user_entity['phone']})")
+
             await safe_send_document(event.from_user.id, pdf_file)
             await event.answer(f"{'\n'.join(result)}", reply_markup=user_main_menu())
+
+            result.append(f"👨🏻‍💻 Пользователь: {user_entity['name']}\n📞 {user_entity['phone']}")
             await safe_send(
                 text=f"🏄✅ НОВОЕ БРОНИРОВАНИЕ УРОКА:\n\n{'\n'.join(result)}",
                 chat_id=NOTIFICATION_CHAT
@@ -152,7 +154,7 @@ async def successful_payment(
                 f"🗺 Направление: {tour['dest']}\n"
                 f"📝 Описание: {tour['desc']}\n"
                 f"⏰ Время начала: {tour['time']}\n"
-                f"📅 Даты: {tour['start_date']} - {tour['end_date']}\n"
+                f"📅 Даты: {tour['start_date'].strftime("%d.%m.%Y")} ПО {tour['end_date'].strftime("%d.%m.%Y")}\n"
                 f"👥 Забронированных мест: {places}\n"
                 f"💶 Оплачено: {price}\n"
             ]
@@ -175,6 +177,8 @@ async def successful_payment(
 
             await safe_send_document(event.from_user.id, pdf_file)
             await event.answer(f"{'\n'.join(result)}", reply_markup=user_main_menu())
+
+            result.append(f"👨🏻‍💻 Пользователь: {user_entity['name']}\n📞 {user_entity['phone']}")
             await safe_send(
                 text=f"🏕✅ НОВОЕ БРОНИРОВАНИЕ ТУРА:\n\n{'\n'.join(result)}",
                 chat_id=NOTIFICATION_CHAT
