@@ -50,7 +50,7 @@ async def book_lesson(
     lesson = await lesson_service.get_user_lesson_details(event.from_user.id, lesson_code)
     lesson_naming = (
         f"🎫 <b>БРОНИРОВАНИЕ</b>\n"
-        f"Наименование урока:\n{lsn['type'].capitalize()} | {lsn['start_date'].strftime("%d.%m.%Y")} | {lsn['time']}"
+        f"Наименование урока:\n{lsn['type'].capitalize()} | {lsn['start_date'].strftime('%d.%m.%Y')} | {lsn['time']}"
     )
     if lesson is not None:
         await safe_edit_text(
@@ -363,9 +363,10 @@ async def lesson_information(
         f"💶 {lesson['price']}₽\n"
     ]
 
+    text = "\n".join(result)
     await safe_edit_text(
         event,
-        text=f"{"\n".join(result)}",
+        text=f"{text}",
         reply_markup=generate_keyboard(
             text='Забронировать урок',
             callback='StartBookingLesson_',

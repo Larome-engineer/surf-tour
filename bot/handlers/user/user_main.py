@@ -84,9 +84,11 @@ async def user_account(
             f"📞: {user_info['phone'] if user_info['phone'] is not None else "-"}\n"
             f"📧: {user_info['email'] if user_info['email'] is not None else "-"}\n"
         ]
+
+        text = "\n".join(result)
         await safe_edit_text(
             event=event,
-            text=f"{"\n".join(result)}",
+            text=f"{text}",
             reply_markup=user_account_menu()
         )
 

@@ -235,7 +235,7 @@ def build_tours_pagination_keyboard(
     page_items = list_of_tours[start:end]
 
     for tour in page_items:
-        label =  f"{tour[value_key]} | {tour.get('start_date', '').strftime("%d.%m.%Y")}"
+        label =  f"{tour[value_key]} | {tour.get('start_date', '').strftime('%d.%m.%Y')}"
         keyboard.button(
             text=label,
             callback_data=f"{callback}{tour[value_key]}"

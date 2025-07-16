@@ -346,9 +346,10 @@ async def tour_information(
         f"💶 {tour['price']}₽\n"
     ]
 
+    text = "\n".join(result)
     await safe_edit_text(
         event,
-        text=f"{"\n".join(result)}",
+        text=f"{text}",
         reply_markup=generate_keyboard(
             text="Забронировать тур",
             callback="StartBookingTour_",

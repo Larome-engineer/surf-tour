@@ -6,7 +6,7 @@ import yaml
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
-with open(os.getenv('YML_CONF')) as yam:
+with open(os.getenv('SURF_YAML')) as yam:
     YAML = yaml.safe_load(yam)
 
 CONFIG_PATH = YAML['config']

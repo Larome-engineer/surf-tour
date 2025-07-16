@@ -590,11 +590,12 @@ async def delete_lesson(
         f"💶 {str(lesson['price'])}₽\n"
     ]
 
+    text = '\n'.join(result)
     await safe_edit_text(
         event,
         text=f"{REMOVE}\n"
              f"• Нельзя удалить урок, который ещё не наступил и имеет хотя бы 1 участника\n\n"
-             f"{'\n'.join(result)}",
+             f"{text}",
         reply_markup=generate_entity_options(
             list_of_text=["Добавить мест", "Удалить урок", "Назад"],
             list_of_callback=["AddLessonPlaces_", "DeleteLesson_", "AllLessonList"],

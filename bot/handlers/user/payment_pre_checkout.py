@@ -118,13 +118,13 @@ async def successful_payment(
                 pdf.getvalue(),
                 filename=f"Бронирование_{lesson['type'].capitalize()} | {lesson['start_date']} | {user_entity['name']}.pdf"
             )
-
+            text = '\n'.join(result)
             await safe_send_document(event.from_user.id, pdf_file)
-            await event.answer(f"{'\n'.join(result)}", reply_markup=user_main_menu())
+            await event.answer(f"{text}", reply_markup=user_main_menu())
 
             result.append(f"👨🏻‍💻 Пользователь: {user_entity['name']}\n📞 {user_entity['phone']}")
             await safe_send(
-                text=f"🏄✅ НОВОЕ БРОНИРОВАНИЕ УРОКА:\n\n{'\n'.join(result)}",
+                text=f"🏄✅ НОВОЕ БРОНИРОВАНИЕ УРОКА:\n\n{text}",
                 chat_id=NOTIFICATION_CHAT
             )
         else:
@@ -175,12 +175,13 @@ async def successful_payment(
                 filename=f"Бронирование_{tour_name} | {user_entity['name']}.pdf"
             )
 
+            text = '\n'.join(result)
             await safe_send_document(event.from_user.id, pdf_file)
-            await event.answer(f"{'\n'.join(result)}", reply_markup=user_main_menu())
+            await event.answer(f"{text}", reply_markup=user_main_menu())
 
             result.append(f"👨🏻‍💻 Пользователь: {user_entity['name']}\n📞 {user_entity['phone']}")
             await safe_send(
-                text=f"🏕✅ НОВОЕ БРОНИРОВАНИЕ ТУРА:\n\n{'\n'.join(result)}",
+                text=f"🏕✅ НОВОЕ БРОНИРОВАНИЕ ТУРА:\n\n{text}",
                 chat_id=NOTIFICATION_CHAT
             )
         else:

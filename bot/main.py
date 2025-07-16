@@ -2,16 +2,16 @@ from aiogram import Bot
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from tortoise import Tortoise
 
-from handlers.admin.admin_direction import admin_direct
-from handlers.admin.admin_lessons import admin_lessons
-from handlers.admin.admin_main import admin_main
-from handlers.admin.admin_tour import admin_tour
-from handlers.admin.admin_users import admin_users
-from handlers.user.payment_pre_checkout import payment
-from handlers.user.user_lesson import user_lesson
-from handlers.user.user_main import user_main
-from handlers.user.user_tour import user_tour
-from config import WEBAPP_HOST, WEBAPP_PORT
+from bot.handlers.admin.admin_direction import admin_direct
+from bot.handlers.admin.admin_lessons import admin_lessons
+from bot.handlers.admin.admin_main import admin_main
+from bot.handlers.admin.admin_tour import admin_tour
+from bot.handlers.admin.admin_users import admin_users
+from bot.handlers.user.payment_pre_checkout import payment
+from bot.handlers.user.user_lesson import user_lesson
+from bot.handlers.user.user_main import user_main
+from bot.handlers.user.user_tour import user_tour
+from bot.config import WEBAPP_HOST, WEBAPP_PORT
 from create import surf_bot, dp, init_db, container, app, web, WEBHOOK_URL, WEBHOOK_PATH
 
 

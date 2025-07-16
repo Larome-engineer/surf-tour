@@ -4,7 +4,7 @@ from aiogram.types import BotCommand
 from tortoise import Tortoise
 from aiohttp import web
 from utils.DIcontainer import Container
-from config import BOT_TOKEN, DB_URL, WEBHOOK_DOMAIN, WEBHOOK_PATH
+from bot.config import BOT_TOKEN, DB_URL, WEBHOOK_DOMAIN, WEBHOOK_PATH
 
 # Сохранение payload перед покупкой
 # {user_id: {info1: ..., info2: ..., ...}}
