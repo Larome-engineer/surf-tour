@@ -1,6 +1,6 @@
 from datetime import date
 from io import BytesIO
-
+from bot.config import FONT
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -22,7 +22,7 @@ async def generate_invoice_pdf_tour(
     width, height = A4
 
     pdfmetrics.registerFont(
-        TTFont("NotoSans", "/usr/share/fonts/noto/NotoSans-Regular.ttf")
+        TTFont("NotoSans", FONT)
     )
 
     c.setFont("NotoSans", 20)
@@ -64,7 +64,7 @@ async def generate_invoice_pdf_lesson(
     width, height = A4
 
     pdfmetrics.registerFont(
-        TTFont("NotoSans", "/usr/share/fonts/noto/NotoSans-Regular.ttf")
+        TTFont("NotoSans", FONT)
     )
 
     c.setFont("NotoSans", 20)

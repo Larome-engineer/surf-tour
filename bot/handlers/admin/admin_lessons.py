@@ -145,7 +145,7 @@ async def add_lesson_places(event: Message, state: FSMContext):
     await state.update_data(places=event.text)
     await event.answer(
         text=f"{ADD_LESSON}\n• Отправьте дату начала урока.\n-> Для отмены нажмите команду /start",
-        reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+        reply_markup=await SimpleCalendar(locale="ru_RU.UTF-8").start_calendar()
     )
     await state.set_state(AddLesson.start)
 
@@ -153,14 +153,14 @@ async def add_lesson_places(event: Message, state: FSMContext):
 @admin_lessons.callback_query(SimpleCalendarCallback.filter(), AddLesson.start, IsAdmin())
 async def add_lesson_date(event: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
     await safe_answer(event)
-    selected, date = await SimpleCalendar(locale="ru_RU").process_selection(event, callback_data)
+    selected, date = await SimpleCalendar(locale="ru_RU.UTF-8").process_selection(event, callback_data)
     if selected:
         if date < datetime.now():
             await safe_edit_text(
                 event,
                 text=f"{ADD_LESSON}\nНЕПРАВИЛЬНАЯ ДАТА. ПОПРОБУЙТЕ ЕЩЕ РАЗ\n\n"
                      f"• Отправьте дату начала урока.\n-> Для отмены нажмите команду /start",
-                reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+                reply_markup=await SimpleCalendar(locale="ru_RU.UTF-8").start_calendar()
             )
             await state.set_state(AddLesson.start)
             return

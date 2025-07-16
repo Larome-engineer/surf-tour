@@ -15,7 +15,7 @@ DB_URL = f"sqlite:///{YAML['database']['path']}"
 ADMINS = YAML['telegram']['admins']
 PROVIDER_TOKEN = YAML['telegram']['payment_provider_token']
 NOTIFICATION_CHAT = YAML['telegram']['notification_chat']
-
+FONT = YAML['font']
 WEBHOOK_DOMAIN = YAML['telegram']['webhook']['domain']
 WEBHOOK_PATH = YAML['telegram']['webhook']['path']
 WEBAPP_PORT=YAML['telegram']['webapp']['port']

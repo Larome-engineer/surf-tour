@@ -111,7 +111,7 @@ async def add_tour_places(event: Message, state: FSMContext):
     await state.update_data(places=event.text)
     await event.answer(
         text=f"{ADD_TOUR}\n• Отправьте дату начала тура или отправьте /start для отмены",
-        reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+        reply_markup=await SimpleCalendar(locale="ru_RU.UTF-8").start_calendar()
     )
     await state.set_state(AddTour.start)
 
@@ -119,14 +119,14 @@ async def add_tour_places(event: Message, state: FSMContext):
 @admin_tour.callback_query(SimpleCalendarCallback.filter(), AddTour.start, IsAdmin())
 async def add_tour_start_date(event: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
     await safe_answer(event)
-    selected, date = await SimpleCalendar(locale="ru_RU").process_selection(event, callback_data)
+    selected, date = await SimpleCalendar(locale="ru_RU.UTF-8").process_selection(event, callback_data)
     if selected:
         if date < datetime.now():
             await safe_edit_text(
                 event,
                 text=f"{ADD_TOUR}\nНЕПРАВИЛЬНАЯ ДАТА. ПОПРОБУЙТЕ ЕЩЕ РАЗ\n\n"
                      f"• Отправьте дату начала тура.\n-> Для отмены нажмите команду /start",
-                reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+                reply_markup=await SimpleCalendar(locale="ru_RU.UTF-8").start_calendar()
             )
             await state.set_state(AddTour.start)
             return
@@ -134,7 +134,7 @@ async def add_tour_start_date(event: CallbackQuery, callback_data: SimpleCalenda
         await safe_edit_text(
             event,
             text=f"{ADD_TOUR}\n• Отправьте дату конца тура.\nДля отмены -> /start для отмены",
-            reply_markup=await SimpleCalendar(locale="ru_RU").start_calendar()
+            reply_markup=await SimpleCalendar(locale="ru_RU.UTF-8").start_calendar()
         )
         await state.set_state(AddTour.end)
 
@@ -142,14 +142,14 @@ async def add_tour_start_date(event: CallbackQuery, callback_data: SimpleCalenda
 @admin_tour.callback_query(SimpleCalendarCallback.filter(), AddTour.end, IsAdmin())
 async def add_tour_end_date(event: CallbackQuery, callback_data: SimpleCalendarCallback, state: FSMContext):
     await safe_answer(event)
-    selected, date = await SimpleCalendar(locale="ru_RU").process_selection(event, callback_data)
+    selected, date = await SimpleCalendar(locale="ru_RU.UTF-8").process_selection(event, callback_data)
     if selected:
         data = await state.get_data()
         if date < data['start']:
             await safe_edit_text(
                 event,
                 text=f"{ADD_TOUR}\n• Дата окончания не может быть раньше даты начала. Пожалуйста, выберите заново.",
-                reply_markup=SimpleCalendar(locale="ru_RU").start_calendar()
+                reply_markup=SimpleCalendar(locale="ru_RU.UTF-8").start_calendar()
             )
             await state.set_state(AddTour.end)
             return
