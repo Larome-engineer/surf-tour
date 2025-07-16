@@ -14,7 +14,7 @@ from service.export_service import ExportService
 from service.lesson_service import LessonService
 from service.user_service import UserService
 from utils.validators import is_valid_time
-from DIcontainer import Container
+from utils.DIcontainer import Container
 admin_lessons = Router()
 
 ADD_LESSON = "<b>🏄 ДОБАВЛЕНИЕ УРОКА 🏄</b>"

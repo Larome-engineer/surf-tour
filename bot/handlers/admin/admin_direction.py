@@ -3,7 +3,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import BufferedInputFile
 from dependency_injector.wiring import Provide, inject
 
-from DIcontainer import Container
+from utils.DIcontainer import Container
 from bot.filters.isAdmin import IsAdmin
 from bot.handlers.handler_utils import *
 from bot.keyboards.admin import *

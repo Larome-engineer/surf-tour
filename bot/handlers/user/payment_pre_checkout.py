@@ -5,7 +5,7 @@ from dependency_injector.wiring import Provide, inject
 
 from bot.config import NOTIFICATION_CHAT
 from bot.create import payment_payload, surf_bot
-from DIcontainer import Container
+from utils.DIcontainer import Container
 from bot.handlers.handler_utils import safe_send_document, safe_send
 from bot.keyboards.user import user_main_menu
 from service.lesson_service import LessonService

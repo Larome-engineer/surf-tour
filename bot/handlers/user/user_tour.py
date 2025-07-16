@@ -6,7 +6,7 @@ from dependency_injector.wiring import Provide, inject
 
 from bot.config import PROVIDER_TOKEN
 from bot.create import payment_payload
-from DIcontainer import Container
+from utils.DIcontainer import Container
 from bot.handlers.handler_utils import *
 from bot.keyboards.user import *
 from service.user_service import UserService

@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from dependency_injector.wiring import Provide, inject
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
-from DIcontainer import Container
+from utils.DIcontainer import Container
 
 
 from aiogram_calendar import SimpleCalendarCallback
