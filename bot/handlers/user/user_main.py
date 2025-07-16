@@ -80,9 +80,9 @@ async def user_account(
     if user_info is not None:
         result = [
             f"<b>🆔 {user_info['tg_id']}</b>\n\n"
-            f"👨🏻‍💻: {user_info['name'] if user_info['name'] is not None else "-"}\n"
-            f"📞: {user_info['phone'] if user_info['phone'] is not None else "-"}\n"
-            f"📧: {user_info['email'] if user_info['email'] is not None else "-"}\n"
+            f"👨🏻‍💻: {user_info['name'] if user_info['name'] is not None else '-'}\n"
+            f"📞: {user_info['phone'] if user_info['phone'] is not None else '-'}\n"
+            f"📧: {user_info['email'] if user_info['email'] is not None else '-'}\n"
         ]
 
         text = "\n".join(result)
