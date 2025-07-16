@@ -99,7 +99,7 @@ async def notify_about_tour(tour, users):
         tour['dest'],
         tour['start'].date().strftime('%d.%m.%Y'),
         tour['time'],
-        end_date=tour['end'],
+        end_date=tour['end'].date().strftime('%d.%m.%Y'),
         is_lesson=False
     )
 

@@ -57,12 +57,12 @@ async def safe_send(chat_id, text, reply_markup=None):
 async def safe_send_all(text, users, reply_markup):
     send, not_send = 0, 0
     for user in users:
-        if isinstance(user['notification'], int) and user['notification'] == 1:
-            was_send = await safe_send(user['tg_id'], text, reply_markup)
-            if was_send:
-                send += 1
-            else:
-                not_send += 1
+        # if isinstance(user['notification'], int) and user['notification'] == 1:
+        #     was_send = await safe_send(user['tg_id'], text, reply_markup)
+        #     if was_send:
+        #         send += 1
+        #     else:
+        #         not_send += 1
         if isinstance(user['notification'], bool) and user['notification']:
             was_send = await safe_send(user['tg_id'], text, reply_markup)
             if was_send:
