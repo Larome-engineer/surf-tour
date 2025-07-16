@@ -12,7 +12,7 @@ from bot.handlers.user.user_lesson import user_lesson
 from bot.handlers.user.user_main import user_main
 from bot.handlers.user.user_tour import user_tour
 from bot.config import WEBAPP_HOST, WEBAPP_PORT
-from create import surf_bot, dp, init_db, container, app, web, WEBHOOK_URL, WEBHOOK_PATH
+from bot.create import surf_bot, dp, init_db, container, app, web, WEBHOOK_URL, WEBHOOK_PATH
 
 
 async def init_container(app):
