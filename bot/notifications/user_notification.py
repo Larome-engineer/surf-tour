@@ -17,7 +17,7 @@ async def notify_places_lesson(lesson, users_list, places: int):
         f"🔥 ДОБАВЛИСЬ МЕСТА! 🔥\n"
         f"{lsn}\n"
         f"Добавилось: {places} {get_plural_form(places, 'Место', 'Места', 'Мест')}\n\n"
-        f"⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
+        f"⬇ <b>ПОСМОТРЕТЬ</b> ⬇"
     )
 
     builder = InlineKeyboardBuilder()
@@ -40,7 +40,7 @@ async def notify_places_tour(tour, users_list, places: int):
         f"🔥 ДОБАВЛИСЬ МЕСТА! 🔥\n"
         f"{tour['name']}\n{btn_perform(tour['dest'], tour['start_date'].strftime('%d.%m.%Y'), tour['time'], is_lesson=False)}"
         f"Добавилось: {places} {get_plural_form(places, 'Место', 'Места', 'Мест')}\n\n"
-        f"⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️",
+        f"⬇ <b>ПОСМОТРЕТЬ</b> ⬇",
     )
     tour_perform = btn_perform(
         tour['dest'],
@@ -75,8 +75,8 @@ async def notify_about_lesson(lesson: dict, users):
         f"🏄 ОТКРЫЛСЯ НОВЫЙ УРОК! 🏄\n"
         f"{lesson['type']}\n"
         f"{lesson['dest']}\n"
-        f"{perform_date(lesson['start'], lesson['time'])}"
-        f"\n\n⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
+        f"{perform_date(lesson['start'], lesson['time'])}\n\n"
+        f"⬇ <b>ПОСМОТРЕТЬ</b> ⬇"
     )
 
     builder = InlineKeyboardBuilder()
@@ -106,8 +106,8 @@ async def notify_about_tour(tour, users):
         f"🏕 ОТКРЫЛСЯ НОВЫЙ ТУР! 🏕\n"
         f"{tour['name']}\n"
         f"{tour['dest']}\n"
-        f"{perform_date(tour['start'].strftime('%d.%m.%Y'), tour['time'])}"
-        f"\n\n⬇️ <b>ПОСМОТРЕТЬ</b> ⬇️"
+        f"{perform_date(tour['start'].strftime('%d.%m.%Y'), tour['time'])}\n\n"
+        f"⬇ <b>ПОСМОТРЕТЬ</b> ⬇"
     )
 
     builder = InlineKeyboardBuilder()
