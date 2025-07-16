@@ -1,0 +1,56 @@
+from database.models import SurfLesson, User, Tour, TourPayment, SurfPayment, Destination, UserSurf
+from utils.date_utils import safe_parse_date
+
+def serialize_user(user: User | UserSurf) -> dict:
+    return {
+        "id": user.user_id,
+        "tg_id": user.user_tg_id,
+        "name": user.user_name,
+        "email": user.user_email,
+        "phone": user.user_phone,
+        "notification": user.user_enable_notifications
+    }
+
+def serialize_tour(tour: Tour, users: list = None, payment: TourPayment = None) -> dict:
+    d = {
+        "name": tour.tour_name,
+        "desc": tour.tour_desc,
+        "dest": tour.tour_destination.destination.capitalize() if tour.tour_destination else None,
+        "places": tour.tour_places,
+        "price": tour.tour_price,
+        "start_date": safe_parse_date(tour.start_date),
+        "time": tour.start_time,
+        "end_date": safe_parse_date(tour.end_date),
+    }
+    if payment is not None:
+        d['paid'] = payment.pay_price if payment else 0.0
+    if users is not None:
+        d['places'] = f"{len(users)}/{int(d['places']) + len(users)}"
+
+    return d
+
+
+def serialize_lesson(surf: SurfLesson, payment: SurfPayment = None, users: list[User] = None) -> dict:
+    d = {
+        "unicode": surf.unique_code,
+        "dest": surf.surf_destination.destination.capitalize() if surf.surf_destination else None,
+        "places": surf.surf_places,
+        "start_date": safe_parse_date(surf.start_date),
+        "price": surf.surf_price,
+        "time": surf.start_time,
+        "duration": surf.surf_duration,
+        "type": surf.surf_type.type,
+        "desc": surf.surf_desc,
+    }
+
+    if payment is not None:
+        d['paid'] = payment.pay_price if payment else 0.0
+    if users is not None:
+        d['places'] = f"{len(users)}/{int(d['places']) + len(users)}"
+    return d
+
+def serialize_destination(dest: Destination) -> dict:
+    return {
+        "id": dest.dest_id,
+        "name": dest.destination.capitalize()
+    }
