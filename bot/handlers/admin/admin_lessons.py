@@ -217,10 +217,17 @@ async def add_lesson_create(
         places=lesson_data['places'],
         start=lesson_data['start'],
         time=lesson_data['time'],
-        lesson_type=lesson_data['type'].capitalize(),
+        lesson_type=lesson_data['type'],
         price=int(event.text),
         dest=lesson_data['dest']
     )
+
+    if not lesson:
+        await event.answer(
+            text=f"{ADD_LESSON}\n• При создании урока произошла ошибка",
+            reply_markup=lesson_menu()
+        )
+        return
 
     created = lesson[0]
 
@@ -283,12 +290,62 @@ async def get_all_booked_lessons(
     await safe_edit_text(
         event,
         text=f"{LESSON_LIST}\n• Список предстоящих забронированных уроков\n",
-        reply_markup=build_lessons_pagination_keyboard(
+        reply_markup=build_booking_lessons_pagination_keyboard(
             lessons=booked,
-            page=0,
             back_callback="BackToLessonMenu"
         )
     )
+
+@admin_lessons.callback_query(lambda c: (
+        c.data.startswith("LessonsBOOKINGList_page:") or
+        c.data.startswith("InfoAboutBOOKINGLesson_")
+), IsAdmin())
+@inject
+async def get_lesson_by_code(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
+    await state.clear()
+    await safe_answer(event)
+
+    data = event.data
+    lessons = await lesson_service.get_all_lessons()
+
+    if data.startswith("LessonsBOOKINGList_page:"):
+        page = int(data.split(":")[1])
+        await safe_edit_text(
+            event,
+            f"{LESSON_LIST}\n<b>• Страница {page + 1}</b>",
+            reply_markup=build_booking_lessons_pagination_keyboard(
+                lessons=lessons,
+                page=page,
+                back_callback="BookedLessons"
+            )
+        )
+    elif data.startswith("InfoAboutBOOKINGLesson_"):
+        lesson = await lesson_service.get_booked_lesson_by_code(data.split("_")[1])
+        if lesson:
+            result = (
+                f"<b>{lesson['type'].upper()}</b>\n\n"
+                f"🗺 {lesson['dest']}\n"
+                f"📝 {lesson['desc']}\n"
+                f"👥 Забронировано мест: {lesson['places']}\n"
+                f"⌛ {lesson['duration']}\n"
+                f"📅 {perform_date(lesson['start_date'], lesson['time'])}\n"
+                f"💶 {str(lesson['price'])}₽"
+            )
+            await safe_edit_text(
+                event,
+                text=result,
+                reply_markup=generate_entity_options(
+                    list_of_text=["Назад"],
+                    list_of_callback=["BookedLessons"],
+                    entity=lesson,
+                    entity_key="unicode"
+                )
+            )
+
 
 
 @admin_lessons.callback_query(F.data == "AllLessonList", IsAdmin())

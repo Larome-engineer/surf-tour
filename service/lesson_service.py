@@ -24,7 +24,7 @@ class LessonService:
                             lesson_type: str
                             ):
         destination = await self.dest_service.get_destination(dest.lower())
-        less_type = await self.repo.get_lesson_type(lesson_type)
+        less_type = await self.repo.get_lesson_type(lesson_type.lower())
         if destination is None or less_type is None: return None
         unicode = await self.repo.create_lesson(
             SurfLesson(
@@ -75,6 +75,17 @@ class LessonService:
         if not lesson:
             return None
         return lesson
+
+    async def get_booked_lesson_by_code(self, code):
+        lesson = await self.repo.get_booked_lesson_by_code(code)
+        if not lesson:
+            return None
+        users = []
+        for user_surfs in lesson.user_surfs:
+            if user_surfs.user:
+                users.append(serialize_user(user_surfs.user))
+
+        return serialize_lesson(surf=lesson, users=users)
 
     async def get_all_booked_lessons_future(self):
         lessons = await self.repo.get_all_booked_lessons_future()

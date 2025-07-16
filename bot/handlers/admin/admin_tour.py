@@ -240,10 +240,64 @@ async def get_booked_tours(
     await safe_edit_text(
         event,
         text=f"{LIST}\n",
-        reply_markup=build_tours_pagination_keyboard(
+        reply_markup=build_booking_tours_pagination_keyboard(
             list_of_tours=booked,
+            callback="InfoAboutBOOKEDTour_",
             back_callback="BackToTourMenu"
         ))
+
+@admin_tour.callback_query(lambda c: (
+        c.data.startswith("InfoAboutBOOKEDTour_page:") or
+        c.data.startswith("InfoAboutBOOKEDTour_")
+), IsAdmin())
+@inject
+async def get_tour_information(
+        event: CallbackQuery,
+        state: FSMContext,
+        tour_service: TourService = Provide[Container.tour_service]
+):
+    await state.clear()
+    await safe_answer(event)
+
+    data = event.data
+    tours = await tour_service.get_all_tours_with_places()
+
+    if "InfoAboutBOOKEDTour_page:" in data:
+        page = int(data.split(":")[-1])
+        await safe_edit_text(
+            event,
+            f"{LIST}\n • Страница {page + 1}",
+            reply_markup=build_booking_tours_pagination_keyboard(
+                list_of_tours=tours,
+                value_key="name",
+                callback="InfoAboutBOOKEDTour_",
+                back_callback="BackToTourMenu",
+                page=page,
+            )
+        )
+    elif data.startswith("InfoAboutBOOKEDTour_"):
+        tour_name = data.split("_")[1]
+        tour = await tour_service.get_booked_tour_by_name(tour_name)
+        if tour:
+            result = (
+                f"<b>{tour['name'].upper()}</b>\n\n"
+                f"🔜 {tour['dest']}\n"
+                f"📝 {tour['desc']}\n"
+                f"👥 Забронировано мест: {tour['places']}\n"
+                f"⏰ Время начала: {tour['time']}\n"
+                f"📅 {tour['start_date'].strftime("%d.%m.%Y")} - {tour['end_date'].strftime("%d.%m.%Y")}\n"
+                f"💰 {str(tour['price'])}₽"
+            )
+            await safe_edit_text(
+                event,
+                text=result,
+                reply_markup=generate_entity_options(
+                    list_of_text=["Назад"],
+                    list_of_callback=["BookedTours"],
+                    entity=tour,
+                    entity_key="name"
+                )
+            )
 
 
 @admin_tour.callback_query(F.data == "AllTourList", IsAdmin())

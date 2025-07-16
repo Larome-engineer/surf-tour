@@ -11,7 +11,7 @@ def serialize_user(user: User | UserSurf) -> dict:
         "notification": user.user_enable_notifications
     }
 
-def serialize_tour(tour: Tour, payment: TourPayment = None) -> dict:
+def serialize_tour(tour: Tour, users: list = None, payment: TourPayment = None) -> dict:
     d = {
         "name": tour.tour_name,
         "desc": tour.tour_desc,
@@ -24,6 +24,8 @@ def serialize_tour(tour: Tour, payment: TourPayment = None) -> dict:
     }
     if payment is not None:
         d['paid'] = payment.pay_price if payment else 0.0
+    if users is not None:
+        d['places'] = f"{len(users)}/{int(d['places']) + len(users)}"
 
     return d
 
@@ -44,7 +46,7 @@ def serialize_lesson(surf: SurfLesson, payment: SurfPayment = None, users: list[
     if payment is not None:
         d['paid'] = payment.pay_price if payment else 0.0
     if users is not None:
-        d['users'] = users
+        d['places'] = f"{len(users)}/{int(d['places']) + len(users)}"
     return d
 
 def serialize_destination(dest: Destination) -> dict:

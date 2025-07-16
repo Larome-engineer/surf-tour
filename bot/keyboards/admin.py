@@ -157,7 +157,7 @@ def simple_build_dynamic_keyboard(
 def generate_entity_options(list_of_text: list[str], list_of_callback: list[str], entity, entity_key):
     keyboard = InlineKeyboardBuilder()
     for i in range(len(list_of_callback)):
-        if list_of_text[i] != "🔙" and not list_of_callback[i].startswith("All"):
+        if list_of_text[i] != "🔙" and not list_of_callback[i].startswith("All") and not list_of_callback[i].startswith("Booked"):
             cb_data = f"{list_of_callback[i]}{entity[entity_key]}"
         else:
             cb_data = f"{list_of_callback[i]}"
@@ -174,7 +174,7 @@ def generate_entity_options(list_of_text: list[str], list_of_callback: list[str]
 def buttons_by_entity_list_values(entity_list, callback, back_to_callback):
     builder = InlineKeyboardBuilder()
     for entity in entity_list:
-        builder.row(InlineKeyboardButton(text=entity.type, callback_data=f"{callback}{entity.type}"))
+        builder.row(InlineKeyboardButton(text=entity.type.capitalize(), callback_data=f"{callback}{entity.type}"))
     builder.row(InlineKeyboardButton(text="🔙", callback_data=back_to_callback))
     return builder.as_markup()
 
@@ -246,7 +246,129 @@ def build_lessons_pagination_keyboard(
     return keyboard.as_markup()
 
 
+def build_booking_lessons_pagination_keyboard(
+        lessons: list,
+        page: int = 0,
+        items_per_page: int = 2,
+        back_callback: str = None
+):
+    keyboard = InlineKeyboardBuilder()
+    start = page * items_per_page
+    end = start + items_per_page
+    page_items = lessons[start:end]
+
+    for l in page_items:
+        date = l['start_date']
+        label = f"{DAYS_RU[date.weekday()]}, {date.day} {MONTHS_RU[date.month]} | {l['time']}"
+        keyboard.button(
+            text=label,
+            callback_data=f"InfoAboutBOOKINGLesson_{l['unicode']}"
+        )
+    keyboard.adjust(1)
+
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"LessonsBOOKINGList_page:{page - 1}"
+            )
+        )
+
+    if back_callback:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="🔙 МЕНЮ",
+                callback_data=back_callback
+            )
+        )
+
+    if end < len(lessons):
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Вперёд ➡️",
+                callback_data=f"LessonsBOOKINGList_page:{page + 1}"
+            )
+        )
+    if nav_buttons:
+        keyboard.row(*nav_buttons)
+
+    return keyboard.as_markup()
+
+
 def build_tours_pagination_keyboard(
+        list_of_tours: list = None,
+        value_key: str = "name",
+        callback: str = None,
+        back_callback: str = None,
+        back_text: str = "🔙",
+        row_width: int = 1,
+        page: int = 0,
+        items_per_page: int = 2
+):
+    keyboard = InlineKeyboardBuilder()
+
+    if list_of_tours is None or len(list_of_tours) == 0:
+        keyboard.row(
+            InlineKeyboardButton(
+                text="❌ Туров нет",
+                callback_data="NoTours"
+            )
+        )
+        if back_callback:
+            keyboard.row(
+                InlineKeyboardButton(
+                    text=back_text,
+                    callback_data=back_callback
+                )
+            )
+        return keyboard.as_markup()
+
+    # Срез по странице
+    start = page * items_per_page
+    end = start + items_per_page
+    page_items = list_of_tours[start:end]
+
+    for tour in page_items:
+        label = f"{tour[value_key]} | {tour.get('start_date', '').strftime("%d.%m.%Y")}"
+        keyboard.button(
+            text=label,
+            callback_data=f"{callback}{tour[value_key]}"
+        )
+    keyboard.adjust(row_width)
+
+    # Кнопки пагинации
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"{callback}page:{page - 1}"
+            )
+        )
+
+    if back_callback:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="🔙 МЕНЮ",
+                callback_data=back_callback
+            )
+        )
+
+    if end < len(list_of_tours):
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Вперёд ➡️",
+                callback_data=f"{callback}page:{page + 1}"
+            )
+        )
+    if nav_buttons:
+        keyboard.row(*nav_buttons)
+
+    return keyboard.as_markup()
+
+
+def build_booking_tours_pagination_keyboard(
         list_of_tours: list = None,
         value_key: str = "name",
         callback: str = None,

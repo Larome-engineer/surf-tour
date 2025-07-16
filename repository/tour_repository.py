@@ -41,6 +41,11 @@ class TourRepository:
     async def get_tour_by_name(self, tour_name) -> Optional[Tour]:
         return await Tour.filter(tour_name=tour_name).prefetch_related("tour_destination").first()
 
+    async def get_booked_tour_by_name(self, tour_name) -> Optional[Tour]:
+        return await (
+            Tour.filter(tour_name=tour_name)
+            .prefetch_related("tour_destination", "user_tours__user").first()
+        )
 
     async def get_all_tours_with_places(self) -> list[Tour]:
         return await (

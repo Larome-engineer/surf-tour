@@ -89,6 +89,7 @@ async def user_get_info(
             )
             return
         user = (
+            f"<b>ID</b> <code>{user['tg_id']}</code>\n"
             f"👤 <b>{user['name']}</b>\n"
             f"📧 {user['email']}\n"
             f"📱 {user['phone']}\n\n"
@@ -144,9 +145,9 @@ async def user_by_telegram_id(
         )
         return
     user = (
-        f"👤 <b>{user.user_name}</b>\n"
-        f"📧 {user.user_email}\n"
-        f"📱 {user.user_phone}\n\n"
+        f"👤 <b>{user['name']}</b>\n"
+        f"📧 {user['email']}\n"
+        f"📱 {user['phone']}\n\n"
         # f"🧳 <b>Тур(ы):</b>\n{tours}"
     )
     await event.answer(f"{MENU}\n• Пользователь:\n{user}", reply_markup=user_info())

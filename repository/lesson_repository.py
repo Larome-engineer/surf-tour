@@ -10,12 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 class LessonRepository:
-
     """TYPE CREATE"""
+
     async def add_lesson_type(self, type_lesson: str) -> LessonType:
         return await LessonType.create(type=type_lesson.lower())
 
     """TYPE GET"""
+
     async def get_lesson_types(self) -> list[LessonType]:
         return await LessonType.all()
 
@@ -23,6 +24,7 @@ class LessonRepository:
         return await LessonType.get_or_none(type=lesson_type)
 
     """LESSON CREATE"""
+
     async def create_lesson(self, surf_lesson: SurfLesson) -> str:
         code = str(uuid.uuid4())
         await SurfLesson.create(
@@ -46,6 +48,7 @@ class LessonRepository:
         return True
 
     """LESSON GET"""
+
     async def get_all_lessons(self) -> list[SurfLesson]:
         return await (
             SurfLesson.all()
@@ -63,6 +66,12 @@ class LessonRepository:
     async def get_lesson_by_code(self, code) -> Optional[SurfLesson]:
         return await SurfLesson.filter(unique_code=code).prefetch_related("surf_destination", "surf_type").first()
 
+    async def get_booked_lesson_by_code(self, code) -> Optional[SurfLesson]:
+        return await (
+            SurfLesson.filter(unique_code=code)
+            .prefetch_related("surf_destination", "surf_type", "user_surfs__user").first()
+        )
+
     async def get_all_booked_lessons_future(self) -> list[SurfLesson]:
         all_lessons = await (
             SurfLesson.filter(user_surfs__isnull=False)
@@ -74,7 +83,7 @@ class LessonRepository:
         today = date.today()
         result = []
         for l in all_lessons:
-            if l.start_date >= today:
+            if safe_parse_date(l.start_date) >= today:
                 result.append(l)
         return result
 
@@ -121,11 +130,12 @@ class LessonRepository:
         lesson = await self.get_lesson_by_code(code)
         if not lesson:
             return None
-        if lesson.start_date < date.today() or not await SurfPayment.filter(surf=lesson).exists():
+        if safe_parse_date(lesson.start_date) < date.today() or not await SurfPayment.filter(surf=lesson).exists():
             return None
         return lesson
 
     """LESSON UPDATE"""
+
     async def reduce_places_on_lesson(self, code, count) -> bool | None:
         lesson = await self.get_lesson_by_code(code)
         if not lesson:
@@ -145,6 +155,7 @@ class LessonRepository:
         return True
 
     """LESSON DELETE"""
+
     async def delete_lesson(self, code) -> bool:
         deleted = await SurfLesson.filter(unique_code=code).delete()
         return deleted > 0

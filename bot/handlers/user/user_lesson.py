@@ -221,7 +221,7 @@ async def upcoming_lessons_list(
     if not lessons:
         await safe_edit_text(
             event,
-            text=f"<b>✖️🏄 У Вас пока нет предстоящих туров уроков</b>",
+            text=f"<b>✖️🏄 У Вас пока нет предстоящих уроков</b>",
             reply_markup=user_account_menu()
         )
         return
@@ -271,7 +271,7 @@ async def upcoming_lesson_details(
         f"<b>🏄 {details['type'].capitalize()}</b>\n\n"
         f"🗺 {details['dest']}\n"
         f"✏️ {details['desc']}\n"
-        f"👥 Забронировано мест: 1/{details['places']}\n"
+        f"👥 Забронировано мест: 1\n"
         f"⌛️ Продолжительность: {details['duration']}\n"
         f"📅 {details['start_date']} | {details['time']}\n"
         f"💶 {details['paid']}\n"

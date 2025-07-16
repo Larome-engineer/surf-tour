@@ -262,7 +262,7 @@ async def upcoming_tour_details(
         f"<b>🏕 {details['name']}</b>\n\n"
         f"🗺 {details['dest']}\n"
         f"📝 {details['desc']}\n"
-        f"👥 Всего забронировано мест: {details['places']}\n"
+        f"👥 Всего забронировано мест: 1\n"
         f"⏰ Время начала: {details['time']}\n"
         f"📅 С {details['start_date'].strftime("%d.%m.%Y")} ПО {details['end_date'].strftime("%d.%m.%Y")}\n"
         f"💶 {details['paid']}\n"

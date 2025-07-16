@@ -164,7 +164,10 @@ async def send_mailing(event: Message, state: FSMContext):
 
 @admin_main.callback_query(F.data == 'decline_mailing')
 async def decline_mailing(event: CallbackQuery, state: FSMContext):
-    await clear_and_edit(event, state, text=f"{headUserMain}\n• Рассылка отменена", reply_markup=user_menu())
+    await state.clear()
+    await safe_answer(event)
+    await safe_delete(event)
+    await event.message.answer(text=f"{headUserMain}\n• Рассылка отменена", reply_markup=user_menu())
 
 
 @admin_main.callback_query(F.data == 'send_mailing')
@@ -177,25 +180,25 @@ async def mailing_handler(
     data = await get_and_clear(state)
     await safe_answer(event)
 
+    await safe_delete(event)
     mailing_message = data['msg']
     user_ids = await user_service.get_all_users_ids()
     if not user_ids:
-        await safe_edit_text(
-            event,
+        await safe_delete(event)
+        await event.answer(
             text=f"{headerMailing}\n• У Вас нет пользователей для рассылки сообщения",
             reply_markup=user_menu()
         )
         return
 
-    await safe_edit_text(event, "Рассылка начата...")
+    await event.message.answer("Рассылка начата...")
     send, not_send = await mailing_action(
         from_chat=event.from_user.id,
         message=mailing_message,
         users=user_ids
     )
-
-    await safe_edit_text(
-        event,
+    await safe_delete(event)
+    await event.message.answer(
         text=f"{headUserMain}\n\n<b>Уведомление</b>\n✅ Получили: {send}\n❌ Не получили: {not_send}",
         reply_markup=user_menu()
     )

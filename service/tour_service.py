@@ -4,7 +4,7 @@ from datetime import datetime
 from database.models import Tour
 from repository.tour_repository import TourRepository
 from service.destination_service import DestService
-from utils.serializer import serialize_tour
+from utils.serializer import serialize_tour, serialize_user
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,17 @@ class TourService:
         if not t:
             return None
         return serialize_tour(t)
+
+    async def get_booked_tour_by_name(self, tour_name):
+        t = await self.repo.get_booked_tour_by_name(tour_name)
+        if not t:
+            return None
+        users = []
+        for user_tour in t.user_tours:
+            if user_tour.user:
+                users.append(serialize_user(user=user_tour.user))
+
+        return serialize_tour(tour=t, users=users)
 
     async def get_tour(self, tour_name):
         t = await self.repo.get_tour_by_name(tour_name)
@@ -113,7 +124,7 @@ class TourService:
         result = []
         for ut in user_tours:
             payment = await self.repo.get_user_tour_payment(ut.user_id, ut.tour_id)
-            result.append(serialize_tour(ut.tour, payment))
+            result.append(serialize_tour(tour=ut.tour, payment=payment))
         return result
 
     async def get_user_tour_details(self, tg_id, tour_name):
@@ -122,7 +133,7 @@ class TourService:
             return None
 
         payment = await self.repo.get_user_tour_payment(ut.user_id, ut.tour_id)
-        return serialize_tour(ut.tour, payment)
+        return serialize_tour(tour=ut.tour, payment=payment)
 
     async def create_user_tour(self, user, tour):
         created = await self.repo.create_user_tour(user, tour)
