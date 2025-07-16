@@ -478,7 +478,7 @@ async def add_tour_places_choice(
         return
 
     tour = await tour_service.get_tour_by_name(state_data['name'])
-    users_list = await user_service.get_all_users_ids()
+    users_list = await user_service.get_all_users()
     if not users_list:
         await event.answer(
             text=f"{ADD_PLACES}\n• Места на тур {state_data['name']} успешно добавлены\n"

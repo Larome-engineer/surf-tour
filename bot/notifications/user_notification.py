@@ -96,7 +96,7 @@ async def notify_about_lesson(lesson: dict, users):
 async def notify_about_tour(tour, users):
     tour_perform = btn_perform(
         tour['dest'],
-        tour['start'],
+        tour['start'].date().strftime('%d.%m.%Y'),
         tour['time'],
         end_date=tour['end'],
         is_lesson=False
