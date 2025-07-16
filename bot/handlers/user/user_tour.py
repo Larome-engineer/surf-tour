@@ -115,7 +115,7 @@ async def book_tour_applying(
     if isinstance(event, Message):
         phone = event.text
         now_state = await state.get_state()
-        if now_state == "UserBookLesson:phone":
+        if now_state == "UserBookTour:phone":
             if is_valid_phone(event.text):
                 await state.update_data(phone=phone)
                 if 'email' in data.keys() or 'phone' in data.keys() or 'name' in data.keys():
