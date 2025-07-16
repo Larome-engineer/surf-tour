@@ -46,7 +46,7 @@ async def notify_places_tour(tour, users_list, places: int):
         tour['dest'],
         tour['start_date'],
         tour['time'],
-        end_date=tour['end'],
+        end_date=tour['end_date'],
         is_lesson=False
     )
 
