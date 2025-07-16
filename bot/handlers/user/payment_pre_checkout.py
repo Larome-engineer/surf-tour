@@ -98,7 +98,7 @@ async def successful_payment(
                 f"📝 Описание: {lesson['desc']}\n"
                 f"⏰ Время начала: {lesson['time']}\n"
                 f"⌛️ Продолжительность: {lesson['duration']}\n"
-                f"📅 Дата: {lesson['start_date'].strftime("%d.%m.%Y")}\n"
+                f"📅 Дата: {lesson['start_date'].strftime('%d.%m.%Y')}\n"
                 f"👥 Забронированных мест: {places}\n"
                 f"💶 Оплачено: {price}\n"
             ]
@@ -154,7 +154,7 @@ async def successful_payment(
                 f"🗺 Направление: {tour['dest']}\n"
                 f"📝 Описание: {tour['desc']}\n"
                 f"⏰ Время начала: {tour['time']}\n"
-                f"📅 Даты: {tour['start_date'].strftime("%d.%m.%Y")} ПО {tour['end_date'].strftime("%d.%m.%Y")}\n"
+                f"📅 Даты: {tour['start_date'].strftime('%d.%m.%Y')} ПО {tour['end_date'].strftime('%d.%m.%Y')}\n"
                 f"👥 Забронированных мест: {places}\n"
                 f"💶 Оплачено: {price}\n"
             ]

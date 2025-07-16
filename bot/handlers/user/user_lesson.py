@@ -359,7 +359,7 @@ async def lesson_information(
         f"👥 Свободные места: {lesson['places']}\n"
         f"👥 Время начала: {lesson['time']}\n"
         f"👥 Продолжительность: {lesson['duration']}\n"
-        f"📅 {lesson['start_date'].strftime("%d.%m.%Y")}\n"
+        f"📅 {lesson['start_date'].strftime('%d.%m.%Y')}\n"
         f"💶 {lesson['price']}₽\n"
     ]
 

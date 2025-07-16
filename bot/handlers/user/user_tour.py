@@ -157,7 +157,7 @@ async def book_tour_applying(
         f"📝 {tour_info['desc']}\n"
         f"👥 Кол-во бронируемых мест: {book_places}\n"
         f"⏰ Время начала: {tour_info['time']}\n"
-        f"📅 С {tour_info['start_date'].strftime("%d.%m.%Y")} ПО {tour_info['end_date'].strftime("%d.%m.%Y")}\n"
+        f"📅 С {tour_info['start_date'].strftime('%d.%m.%Y')} ПО {tour_info['end_date'].strftime('%d.%m.%Y')}\n"
         f"💶 {price}\n"
     )
 
@@ -264,7 +264,7 @@ async def upcoming_tour_details(
         f"📝 {details['desc']}\n"
         f"👥 Всего забронировано мест: 1\n"
         f"⏰ Время начала: {details['time']}\n"
-        f"📅 С {details['start_date'].strftime("%d.%m.%Y")} ПО {details['end_date'].strftime("%d.%m.%Y")}\n"
+        f"📅 С {details['start_date'].strftime('%d.%m.%Y')} ПО {details['end_date'].strftime('%d.%m.%Y')}\n"
         f"💶 {details['paid']}\n"
     )
 
@@ -342,7 +342,7 @@ async def tour_information(
         f"📝 {tour['desc']}\n"
         f"👥 Свободные места: {tour['places']}\n"
         f"⏰ Время начала: {tour['time']}\n"
-        f"📅 С {tour['start_date'].strftime("%d.%m.%Y")} ПО {tour['end_date'].strftime("%d.%m.%Y")}\n"
+        f"📅 С {tour['start_date'].strftime('%d.%m.%Y')} ПО {tour['end_date'].strftime('%d.%m.%Y')}\n"
         f"💶 {tour['price']}₽\n"
     ]
 

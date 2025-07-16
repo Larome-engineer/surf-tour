@@ -285,7 +285,7 @@ async def get_tour_information(
                 f"📝 {tour['desc']}\n"
                 f"👥 Забронировано мест: {tour['places']}\n"
                 f"⏰ Время начала: {tour['time']}\n"
-                f"📅 {tour['start_date'].strftime("%d.%m.%Y")} - {tour['end_date'].strftime("%d.%m.%Y")}\n"
+                f"📅 {tour['start_date'].strftime('%d.%m.%Y')} - {tour['end_date'].strftime('%d.%m.%Y')}\n"
                 f"💰 {str(tour['price'])}₽"
             )
             await safe_edit_text(
@@ -366,7 +366,7 @@ async def get_tour_information(
                 f"📝 {tour['desc']}\n"
                 f"👥 Места: {tour['places']}\n"
                 f"⏰ Время начала: {tour['time']}\n"
-                f"📅 {tour['start_date'].strftime("%d.%m.%Y")} - {tour['end_date'].strftime("%d.%m.%Y")}\n"
+                f"📅 {tour['start_date'].strftime('%d.%m.%Y')} - {tour['end_date'].strftime('%d.%m.%Y')}\n"
                 f"💰 {str(tour['price'])}₽"
             )
             await safe_edit_text(
