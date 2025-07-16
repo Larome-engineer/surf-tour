@@ -38,6 +38,8 @@ def safe_parse_date(value) -> date | None:
 
 
 def perform_date(lesson_date: datetime, lesson_time: str) -> str:
+    if isinstance(lesson_date, str):
+        lesson_date = datetime.strptime(lesson_date, "%d.%m.%Y").date()
     return (
         f"{DAYS_RU[lesson_date.weekday()]}, {lesson_date.day} "
         f"{MONTHS_RU[lesson_date.month]} | {lesson_time}"
