@@ -39,7 +39,7 @@ async def notify_places_lesson(lesson, users_list, places: int):
 async def notify_places_tour(tour, users_list, places: int):
     text = (
         f"🔥 ДОБАВЛИСЬ МЕСТА! 🔥\n"
-        f"{tour['name']}\n{btn_perform(tour['dest'], tour['start_date'].strftime('%d.%m.%Y'), tour['time'],end_date=tour['end_date'].strftime('%d.%m.%Y'), is_lesson=False)}\n"
+        f"{tour['name']}\n{btn_perform(tour['dest'], tour['start_date'].strftime('%d.%m.%Y'), tour['time'], end_date=tour['end_date'].strftime('%d.%m.%Y'), is_lesson=False)}\n"
         f"Добавилось: {places} {get_plural_form(places, 'Место', 'Места', 'Мест')}\n\n"
         f"⬇ <b>ПОСМОТРЕТЬ</b> ⬇"
     )
@@ -98,7 +98,7 @@ async def notify_about_tour(tour, users):
     tour_perform = btn_perform(
         tour['dest'],
         tour['start'].date().strftime('%d.%m.%Y'),
-        tour['time'].date().strftime('%d.%m.%Y'),
+        tour['time'],
         end_date=tour['end'],
         is_lesson=False
     )
