@@ -9,11 +9,19 @@ from utils.date_utils import DAYS_RU, MONTHS_RU, safe_parse_date
 def user_main_menu():
     return InlineKeyboardBuilder().row(
         InlineKeyboardButton(text="💻 Мой аккаунт", callback_data="UserAccount"),
-        InlineKeyboardButton(text="🏄 Список серф-уроков", callback_data="AllLessonsWithFreePlaces"),
+        InlineKeyboardButton(text="🏄 Список серф-уроков", callback_data="AllIndAndGroupLessons"),
         InlineKeyboardButton(text="🏕 Список туров", callback_data='AllToursWithFreePlaces'),
         width=1
     ).as_markup()
 
+
+def user_lessons_choose():
+    return InlineKeyboardBuilder().row(
+        InlineKeyboardButton(text="Индивидуальные уроки", callback_data="UserIndLessons"),
+        InlineKeyboardButton(text="Групповые уроки", callback_data="UserGroupLessons"),
+        InlineKeyboardButton(text="🔙", callback_data='BackToUserMainMenu'),
+        width=1
+    ).as_markup()
 
 def user_account_menu():
     return InlineKeyboardBuilder().row(
@@ -155,6 +163,7 @@ def build_lessons_pagination_keyboard(
         page: int = 0,
         items_per_page: int = 2,
         callback: str = None,
+        page_callback: str = None,
         back_callback: str = None
 ):
     keyboard = InlineKeyboardBuilder()
@@ -176,7 +185,7 @@ def build_lessons_pagination_keyboard(
         nav_buttons.append(
             InlineKeyboardButton(
                 text="⬅️ Назад",
-                callback_data=f"AllToursUserList_page:{page - 1}"
+                callback_data=f"{page_callback}{page - 1}"
             )
         )
 
@@ -192,7 +201,7 @@ def build_lessons_pagination_keyboard(
         nav_buttons.append(
             InlineKeyboardButton(
                 text="Вперёд ➡️",
-                callback_data=f"AllToursUserList_page:{page + 1}"
+                callback_data=f"{page_callback}{page + 1}"
             )
         )
     if nav_buttons:

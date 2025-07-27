@@ -286,11 +286,9 @@ async def upcoming_lesson_details(
 
 
 """LESSON ALL"""
-
-
-@user_lesson.callback_query(F.data == "AllLessonsWithFreePlaces")
+@user_lesson.callback_query(F.data == "UserIndLessons")
 @inject
-async def lesson_list(
+async def ind_lesson_list(
         event: CallbackQuery,
         state: FSMContext,
         lesson_service: LessonService = Provide[Container.lesson_service]
@@ -298,28 +296,94 @@ async def lesson_list(
     await state.clear()
     await safe_answer(event)
 
-    lessons = await lesson_service.get_all_lessons_with_places()
+    lessons = await lesson_service.get_lesson_by_type('индивидуальный урок')
     if lessons is None:
-        await safe_edit_text(event, f"<b>✖️🏄 Пока нет уроков</b>", reply_markup=user_main_menu())
+        await safe_edit_text(event, f"<b>✖️🏄 Пока нет индивидуальных уроков</b>", reply_markup=user_lessons_choose())
         return
 
     await safe_edit_text(
         event,
-        text="🏄 <b>СПИСОК ДОСТУПНЫХ УРОКОВ</b> 🏄\n"
+        text="🏄 <b>СПИСОК ДОСТУПНЫХ ИНДИВИДУАЛЬНЫХ УРОКОВ</b> 🏄\n"
              "• Для подробной информации нажми на нужный урок на клавиатуре\n\n",
         reply_markup=build_lessons_pagination_keyboard(
             lessons=lessons,
             callback="UserMoreAboutLesson_",
+            page_callback="AllIndLessonsUserList_page:",
+            back_callback="BackToUserMainMenu"
+        )
+    )
+
+@user_lesson.callback_query(F.data == "UserGroupLessons")
+@inject
+async def group_lesson_list(
+        event: CallbackQuery,
+        state: FSMContext,
+        lesson_service: LessonService = Provide[Container.lesson_service]
+):
+    await state.clear()
+    await safe_answer(event)
+
+    lessons = await lesson_service.get_lesson_by_type('групповой урок')
+    if lessons is None:
+        await safe_edit_text(event, f"<b>✖️🏄 Пока нет групповых уроков</b>", reply_markup=user_lessons_choose())
+        return
+
+    await safe_edit_text(
+        event,
+        text="🏄 <b>СПИСОК ДОСТУПНЫХ ГРУППОВЫХ УРОКОВ</b> 🏄\n"
+             "• Для подробной информации нажми на нужный урок на клавиатуре\n\n",
+        reply_markup=build_lessons_pagination_keyboard(
+            lessons=lessons,
+            callback="UserMoreAboutLesson_",
+            page_callback="AllGroupLessonsUserList_page:",
             back_callback="BackToUserMainMenu"
         )
     )
 
 
+# @user_lesson.callback_query(F.data == "AllLessonsWithFreePlaces")
+# @inject
+# async def lesson_list(
+#         event: CallbackQuery,
+#         state: FSMContext,
+#         lesson_service: LessonService = Provide[Container.lesson_service]
+# ):
+#     await state.clear()
+#     await safe_answer(event)
+#
+#     lessons = await lesson_service.get_all_lessons_with_places()
+#     if lessons is None:
+#         await safe_edit_text(event, f"<b>✖️🏄 Пока нет уроков</b>", reply_markup=user_main_menu())
+#         return
+#
+#     await safe_edit_text(
+#         event,
+#         text="🏄 <b>СПИСОК ДОСТУПНЫХ УРОКОВ</b> 🏄\n"
+#              "• Для подробной информации нажми на нужный урок на клавиатуре\n\n",
+#         reply_markup=build_lessons_pagination_keyboard(
+#             lessons=lessons,
+#             callback="UserMoreAboutLesson_",
+#             back_callback="BackToUserMainMenu"
+#         )
+#     )
+
+
+@user_lesson.callback_query(F.data == "AllIndAndGroupLessons")
+async def all_ind_and_group_lessons(event: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await safe_answer(event)
+    await safe_edit_text(
+            event,
+            text="🏄 <b>ВЫБЕРИТЕ ТИП УРОКА</b> 🏄\n",
+            reply_markup=user_lessons_choose()
+        )
+
 """LESSON ALL | MORE ABOUT"""
 
 
 @user_lesson.callback_query(lambda c: (
-        c.data.startswith("AllToursUserList_page:") or
+        c.data.startswith("AllGroupLessonsUserList_page:") or
+        c.data.startswith("AllIndLessonsUserList_page:") or
         c.data.startswith("UserMoreAboutLesson_")
 ))
 @inject
@@ -331,8 +395,8 @@ async def lesson_information(
     await state.clear()
     await safe_answer(event)
 
-    if event.data.startswith("AllToursUserList_page:"):
-        lessons = await lesson_service.get_all_lessons_with_places()
+    if event.data.startswith("AllGroupLessonsUserList_page:"):
+        lessons = await lesson_service.get_lesson_by_type('групповой урок')
         page = int(event.data.split(":")[1])
         await safe_edit_text(
             event,
@@ -341,6 +405,23 @@ async def lesson_information(
                 lessons=lessons,
                 page=page,
                 callback="UserMoreAboutLesson_",
+                page_callback="AllGroupLessonsUserList_page:",
+                back_callback="BackToUserMainMenu"
+            )
+        )
+        return
+
+    if event.data.startswith("AllIndLessonsUserList_page:"):
+        lessons = await lesson_service.get_lesson_by_type('индивидуальный урок')
+        page = int(event.data.split(":")[1])
+        await safe_edit_text(
+            event,
+            f"🏄 <b>СПИСОК ДОСТУПНЫХ УРОКОВ</b> 🏄\n• Страница {page + 1}",
+            reply_markup=build_lessons_pagination_keyboard(
+                lessons=lessons,
+                page=page,
+                callback="UserMoreAboutLesson_",
+                page_callback="AllIndLessonsUserList_page:",
                 back_callback="BackToUserMainMenu"
             )
         )
@@ -364,6 +445,12 @@ async def lesson_information(
     ]
 
     text = "\n".join(result)
+    back = ''
+    if lesson['type'] == 'индивидуальный урок':
+        back = 'UserIndLessons'
+    elif lesson['type'] == 'групповой урок':
+        back = 'UserGroupLessons'
+
     await safe_edit_text(
         event,
         text=f"{text}",
@@ -371,6 +458,6 @@ async def lesson_information(
             text='Забронировать урок',
             callback='StartBookingLesson_',
             value_key=lesson['unicode'],
-            back_callback="AllLessonsWithFreePlaces"
+            back_callback=back
         )
     )

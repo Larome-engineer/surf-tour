@@ -11,6 +11,11 @@ telegram:
     port:
   miniapp:
     link:
+  payment_provider_token:
+  notification_chat:
 
 database:
   path:
+
+config:
+font:

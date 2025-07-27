@@ -137,7 +137,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+config.yaml
 # Spyder project settings
 .spyderproject
 .spyproject

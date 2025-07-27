@@ -64,6 +64,17 @@ class LessonService:
             return None
         return [serialize_lesson(surf=l) for l in lessons]
 
+    async def get_lesson_by_type(self, lesson_type):
+        lessons = await self.repo.get_all_lessons_with_places()
+        if not lessons:
+            return None
+        lesson_list = []
+        for l in lessons:
+            if l.surf_type.type == lesson_type:
+                lesson_list.append(l)
+        if not lesson_list: return None
+        return [serialize_lesson(surf=l) for l in lesson_list]
+
     async def get_lesson_by_code(self, code):
         lesson = await self.repo.get_lesson_by_code(code)
         if not lesson:
